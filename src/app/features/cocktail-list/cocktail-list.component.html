@@ -1,0 +1,82 @@
+<div class="container py-4">
+  <header class="mb-4">
+    <h1 class="h3">Bar Manager - Cocktails</h1>
+    
+    <!-- Filtros de búsqueda -->
+    <div class="row g-3 mt-2">
+      <div class="col-md-3">
+        <select class="form-select" [(ngModel)]="searchType" (ngModelChange)="searchTerm = ''">
+          <option value="name">Nombre (Máx 50 car.)</option>
+          <option value="ingredient">Ingrediente</option>
+          <option value="id">ID Numérico</option>
+        </select>
+      </div>
+      <div class="col-md-6">
+        <input 
+          type="text" 
+          class="form-control" 
+          [(ngModel)]="searchTerm" 
+          (ngModelChange)="onSearchChange($event)"
+          [placeholder]="'Buscar por ' + searchType + '...'"
+        />
+      </div>
+      <div class="col-md-3 d-flex align-items-center">
+        <button 
+          class="btn w-100" 
+          [class.btn-warning]="showOnlyFavorites" 
+          [class.btn-outline-secondary]="!showOnlyFavorites"
+          (click)="showOnlyFavorites = !showOnlyFavorites">
+          ★ Ver Favoritos
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <!-- Loader visual (Skeleton / Spinner) -->
+  <div *ngIf="loading" class="text-center py-5">
+    <div class="spinner-border text-primary" role="status">
+      <span class="visually-hidden">Cargando...</span>
+    </div>
+    <p class="text-muted mt-2">Buscando cócteles...</p>
+  </div>
+
+  <!-- Mensaje de error o vacío -->
+  <div *ngIf="!loading && errorMessage" class="alert alert-info text-center">
+    {{ errorMessage }}
+  </div>
+
+  <!-- Grilla de Tarjetas -->
+  <div *ngIf="!loading" class="row row-cols-1 row-cols-md-3 g-4">
+    <div class="col" *ngFor="let cocktail of displayedCocktails; trackBy: trackByDrinkId">
+      <div class="card h-100 shadow-sm position-relative" (click)="viewDetail(cocktail.idDrink)" style="cursor: pointer;">
+        
+        <!-- Botón de Menú Contextual (3 puntos) -->
+        <button class="btn btn-sm btn-light position-absolute top-0 end-0 m-2 rounded-circle" (click)="toggleContextMenu(cocktail.idDrink, $event)">
+          ⋮
+        </button>
+
+        <!-- Menú contextual desplegable -->
+        <div *ngIf="activeMenuId === cocktail.idDrink" class="dropdown-menu show position-absolute top-0 end-0 mt-5 me-2 shadow">
+          <button class="dropdown-item" (click)="viewDetail(cocktail.idDrink)">Ver detalles</button>
+          <button class="dropdown-item" (click)="toggleFavorite(cocktail.idDrink, $event)">
+            {{ isFavorite(cocktail.idDrink) ? 'Remover de favoritos' : 'Añadir a favoritos' }}
+          </button>
+        </div>
+
+        <img [src]="cocktail.strDrinkThumb" class="card-img-top" [alt]="cocktail.strDrink" style="height: 200px; object-fit: cover;">
+        
+        <div class="card-body">
+          <h5 class="card-title text-truncate">{{ cocktail.strDrink }}</h5>
+          <p class="card-text text-muted small mb-1" *ngIf="cocktail.strCategory">Categoría: {{ cocktail.strCategory }}</p>
+          <button 
+            class="btn btn-sm mt-2" 
+            [class.btn-danger]="isFavorite(cocktail.idDrink)" 
+            [class.btn-outline-danger]="!isFavorite(cocktail.idDrink)"
+            (click)="toggleFavorite(cocktail.idDrink, $event)">
+            {{ isFavorite(cocktail.idDrink) ? '♥ Favorito' : '♡ Agregar a favoritos' }}
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>

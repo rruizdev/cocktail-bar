@@ -1,0 +1,44 @@
+<div class="container py-4" *ngIf="!loading && cocktail">
+  <button class="btn btn-outline-secondary mb-3" (click)="goBack()">← Volver al listado</button>
+
+  <div class="row">
+    <div class="col-md-5">
+      <img [src]="cocktail.strDrinkThumb" [alt]="cocktail.strDrink" class="img-fluid rounded shadow">
+    </div>
+    <div class="col-md-7">
+      <h2>{{ cocktail.strDrink }}</h2>
+      <p class="text-muted">
+        <span class="badge bg-secondary me-2" *ngIf="cocktail.strCategory">{{ cocktail.strCategory }}</span>
+        <span class="badge bg-info text-dark" *ngIf="cocktail.strAlcoholic">{{ cocktail.strAlcoholic }}</span>
+      </p>
+
+      <h4 class="mt-4">Ingredientes</h4>
+      <ul class="list-group mb-4">
+        <li class="list-group-item d-flex justify-content-between align-items-center" *ngFor="let ing of cocktail.ingredients">
+          <span>{{ ing.name }}</span>
+          <span class="badge bg-primary rounded-pill" *ngIf="ing.measure">{{ ing.measure }}</span>
+        </li>
+      </ul>
+
+      <h4>Instrucciones de preparación</h4>
+      <p class="p-3 bg-light rounded border">{{ cocktail.strInstructions }}</p>
+
+      <button 
+        class="btn mt-3" 
+        [class.btn-danger]="isFavorite()" 
+        [class.btn-outline-danger]="!isFavorite()"
+        (click)="toggleFavorite()">
+        {{ isFavorite() ? '♥ En Favoritos' : '♡ Añadir a Favoritos' }}
+      </button>
+    </div>
+  </div>
+</div>
+
+<div class="container py-5 text-center" *ngIf="loading">
+  <div class="spinner-border text-primary" role="status"></div>
+</div>
+
+<div class="container py-5 text-center" *ngIf="!loading && !cocktail">
+  <h3>No se encontró el cóctel solicitado.</h3>
+  <button class="btn btn-primary mt-3" (click)="goBack()">Volver al inicio</button>
+</div>
