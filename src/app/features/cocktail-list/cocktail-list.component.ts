@@ -6,18 +6,20 @@ import {
   ChangeDetectorRef
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
 import { Subject, Subscription, fromEvent } from 'rxjs';
 import { debounceTime, distinctUntilChanged, throttleTime } from 'rxjs/operators';
 import { CocktailService } from '../../core/services/cocktail.service';
 import { StateService } from '../../core/services/state.service';
 import { Cocktail } from '../../core/models/cocktail.model';
+import { SearchType } from '../../core/models/search.model';
+import { CocktailCardComponent } from '../../shared/components/cocktail-card/cocktail-card.component';
+import { CocktailSearchComponent } from '../../shared/components/cocktail-search/cocktail-search.component';
 
 @Component({
   selector: 'app-cocktail-list',
   standalone: true,
-  imports: [CommonModule, FormsModule],
+  imports: [CommonModule, CocktailCardComponent, CocktailSearchComponent],
   templateUrl: './cocktail-list.component.html',
   styleUrls: ['./cocktail-list.component.scss'],
   changeDetection: ChangeDetectionStrategy.OnPush
@@ -33,7 +35,7 @@ export class CocktailListComponent implements OnInit, OnDestroy {
   pageSize = 9;
   currentPage = 1;
 
-  searchType: 'name' | 'ingredient' | 'id' = 'name';
+  searchType: SearchType = 'name';
   searchTerm = '';
   showOnlyFavorites = false;
   activeMenuId: string | null = null;
@@ -43,8 +45,6 @@ export class CocktailListComponent implements OnInit, OnDestroy {
   private _filteredCocktails: Cocktail[] = [];
   private _filteredDirty = true;
 
-  // #2: Subject<string> — distinctUntilChanged compara el término real,
-  // no undefined (que era el caso con Subject<void> y bloqueaba todas las emisiones)
   private searchSubject = new Subject<string>();
 
   private catalogSub!: Subscription;
@@ -106,7 +106,6 @@ export class CocktailListComponent implements OnInit, OnDestroy {
       this.searchTerm = value.replace(/[^0-9]/g, '');
     }
 
-    // Emitir el término real para que distinctUntilChanged lo compare correctamente
     this.searchSubject.next(this.searchTerm);
   }
 
@@ -175,6 +174,11 @@ export class CocktailListComponent implements OnInit, OnDestroy {
     this.cdr.markForCheck();
   }
 
+  clearSearch(): void {
+    this.searchTerm = '';
+    this.executeSearch();
+  }
+
   onWindowScroll(): void {
     const pos = (document.documentElement.scrollTop || document.body.scrollTop) + window.innerHeight;
     const max = document.documentElement.scrollHeight - 100;
@@ -183,13 +187,11 @@ export class CocktailListComponent implements OnInit, OnDestroy {
     }
   }
 
-  toggleFavorite(id: string, event: Event): void {
-    event.stopPropagation();
+  toggleFavorite(id: string): void {
     this.cocktailService.toggleFavorite(id);
   }
 
-  toggleContextMenu(id: string, event: Event): void {
-    event.stopPropagation();
+  toggleContextMenu(id: string): void {
     this.activeMenuId = this.activeMenuId === id ? null : id;
   }
 
@@ -206,14 +208,9 @@ export class CocktailListComponent implements OnInit, OnDestroy {
     return cocktail.idDrink;
   }
 
-  onSearchTypeChange(): void {
+  onSearchTypeChange(type: SearchType): void {
+    this.searchType = type;
     this.searchTerm = '';
     this.executeSearch();
-  }
-
-  getPlaceholder(): string {
-    if (this.searchType === 'name') return 'Buscar por nombre (máx. 50 letras)...';
-    if (this.searchType === 'ingredient') return 'Buscar por ingrediente (solo letras)...';
-    return 'Buscar por ID (solo números)...';
   }
 }

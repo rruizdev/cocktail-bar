@@ -2,56 +2,16 @@
   <header class="mb-4">
     <h1 class="h3">Bar Manager - Cocktails</h1>
     
-    <!-- Filtros de búsqueda -->
-    <div class="row g-3 mt-2">
-      <div class="col-md-3">
-        <label for="searchTypeSelect" class="visually-hidden">Tipo de búsqueda</label>
-        <select 
-          id="searchTypeSelect"
-          class="form-select" 
-          [(ngModel)]="searchType" 
-          (ngModelChange)="onSearchTypeChange()"
-          aria-label="Seleccionar criterio de búsqueda">
-          <option value="name">Nombre (Máx 50 car.)</option>
-          <option value="ingredient">Ingrediente</option>
-          <option value="id">ID Numérico</option>
-        </select>
-      </div>
-      <div class="col-md-6 position-relative">
-        <label for="searchInput" class="visually-hidden">Término de búsqueda</label>
-        <input 
-          id="searchInput"
-          type="text" 
-          class="form-control pe-5" 
-          [ngModel]="searchTerm" 
-          (ngModelChange)="onSearchInput($event)"
-          [placeholder]="getPlaceholder()"
-          [maxlength]="searchType === 'name' ? 50 : null"
-          aria-label="Buscar cócteles por término"
-        />
-        <!-- Botón para limpiar de golpe -->
-        <button 
-          *ngIf="searchTerm" 
-          type="button" 
-          class="btn btn-sm position-absolute top-50 end-0 translate-middle-y me-2 text-muted border-0 bg-transparent"
-          (click)="searchTerm = ''; executeSearch()"
-          aria-label="Limpiar búsqueda">
-          ✕
-        </button>
-      </div>
-      <div class="col-md-3 d-flex align-items-center">
-        <button 
-          type="button"
-          class="btn w-100" 
-          [class.btn-warning]="showOnlyFavorites" 
-          [class.btn-outline-secondary]="!showOnlyFavorites"
-          [attr.aria-pressed]="showOnlyFavorites"
-          aria-label="Filtrar solo cócteles favoritos"
-          (click)="toggleFavoritesFilter()">
-          ★ Ver Favoritos
-        </button>
-      </div>
-    </div>
+    <!-- Componente de Búsqueda y Filtros -->
+    <app-cocktail-search
+      [searchType]="searchType"
+      [searchTerm]="searchTerm"
+      [showOnlyFavorites]="showOnlyFavorites"
+      (searchTypeChange)="onSearchTypeChange($event)"
+      (searchInput)="onSearchInput($event)"
+      (clearSearch)="clearSearch()"
+      (toggleFavorites)="toggleFavoritesFilter()">
+    </app-cocktail-search>
   </header>
 
   <!-- Loader visual (Skeleton / Spinner) -->
@@ -70,69 +30,15 @@
   <!-- Grilla de Tarjetas -->
   <div *ngIf="!loading" class="row row-cols-1 row-cols-md-3 g-4" role="region" aria-label="Lista de cócteles">
     <div class="col" *ngFor="let cocktail of displayedCocktails; trackBy: trackByDrinkId">
-      <div 
-        class="card h-100 shadow-sm position-relative cocktail-card" 
-        tabindex="0"
-        role="article"
-        [attr.aria-label]="'Cóctel ' + cocktail.strDrink"
-        (click)="viewDetail(cocktail.idDrink)"
-        (keydown.enter)="viewDetail(cocktail.idDrink)"
-        (keydown.space)="$event.preventDefault(); viewDetail(cocktail.idDrink)">
-        
-        <!-- Overlay con Spinner al navegar -->
-        <div 
-          *ngIf="navigatingId === cocktail.idDrink" 
-          class="card-loading-overlay d-flex flex-column align-items-center justify-content-center">
-          <div class="spinner-border text-light mb-2" role="status">
-            <span class="visually-hidden">Cargando detalle...</span>
-          </div>
-          <span class="badge bg-dark text-light">Cargando...</span>
-        </div>
-
-        <!-- Botón de Menú Contextual (3 puntos) -->
-        <button 
-          type="button"
-          class="btn btn-sm btn-light position-absolute top-0 end-0 m-2 rounded-circle context-menu-btn" 
-          [attr.aria-label]="'Opciones para ' + cocktail.strDrink"
-          aria-haspopup="true"
-          [attr.aria-expanded]="activeMenuId === cocktail.idDrink"
-          (click)="toggleContextMenu(cocktail.idDrink, $event)"
-          (keydown.enter)="toggleContextMenu(cocktail.idDrink, $event)"
-          (keydown.space)="$event.stopPropagation(); toggleContextMenu(cocktail.idDrink, $event)">
-          ⋮
-        </button>
-
-        <!-- Menú contextual desplegable -->
-        <div 
-          *ngIf="activeMenuId === cocktail.idDrink" 
-          class="dropdown-menu show position-absolute top-0 end-0 mt-5 me-2 shadow context-menu-dropdown"
-          role="menu"
-          [attr.aria-label]="'Menú de opciones de ' + cocktail.strDrink">
-          <button type="button" role="menuitem" class="dropdown-item" (click)="viewDetail(cocktail.idDrink)">Ver detalles</button>
-          <button type="button" role="menuitem" class="dropdown-item" (click)="toggleFavorite(cocktail.idDrink, $event)">
-            {{ favoritesSet.has(cocktail.idDrink) ? 'Remover de favoritos' : 'Añadir a favoritos' }}
-          </button>
-        </div>
-
-        <img [src]="cocktail.strDrinkThumb" class="card-img-top cocktail-card-img" [alt]="'Fotografía de ' + cocktail.strDrink" loading="lazy">
-        
-        <div class="card-body">
-          <h2 class="card-title h5 text-truncate">{{ cocktail.strDrink }}</h2>
-          <p class="card-text text-muted small mb-1" *ngIf="cocktail.strCategory">Categoría: {{ cocktail.strCategory }}</p>
-          <button 
-            type="button"
-            class="btn btn-sm mt-2" 
-            [class.btn-danger]="favoritesSet.has(cocktail.idDrink)" 
-            [class.btn-outline-danger]="!favoritesSet.has(cocktail.idDrink)"
-            [attr.aria-pressed]="favoritesSet.has(cocktail.idDrink)"
-            [attr.aria-label]="(favoritesSet.has(cocktail.idDrink) ? 'Remover de favoritos ' : 'Agregar a favoritos ') + cocktail.strDrink"
-            (click)="toggleFavorite(cocktail.idDrink, $event)"
-            (keydown.enter)="toggleFavorite(cocktail.idDrink, $event)"
-            (keydown.space)="$event.stopPropagation(); toggleFavorite(cocktail.idDrink, $event)">
-            {{ favoritesSet.has(cocktail.idDrink) ? '♥ Favorito' : '♡ Agregar a favoritos' }}
-          </button>
-        </div>
-      </div>
+      <app-cocktail-card
+        [cocktail]="cocktail"
+        [isFavorite]="favoritesSet.has(cocktail.idDrink)"
+        [isNavigating]="navigatingId === cocktail.idDrink"
+        [isMenuOpen]="activeMenuId === cocktail.idDrink"
+        (viewDetail)="viewDetail($event)"
+        (toggleFavorite)="toggleFavorite($event)"
+        (toggleMenu)="toggleContextMenu($event)">
+      </app-cocktail-card>
     </div>
   </div>
 

@@ -55,9 +55,8 @@ describe('CocktailListComponent', () => {
 
   it('debería limpiar el término de búsqueda al cambiar el tipo de filtro', () => {
     component.searchTerm = 'test';
-    component.searchType = 'ingredient';
     
-    component.onSearchTypeChange();
+    component.onSearchTypeChange('ingredient');
     
     expect(component.searchTerm).toBe('');
     expect(mockCocktailService.searchLocal).toHaveBeenCalledWith('', 'ingredient');

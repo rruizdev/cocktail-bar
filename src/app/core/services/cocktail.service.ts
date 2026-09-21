@@ -1,15 +1,12 @@
 import { Injectable, NgZone } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { Observable, BehaviorSubject, map, of, tap } from 'rxjs';
-import { Cocktail, CocktailApiResponse } from '../models/cocktail.model';
+import { Cocktail, CocktailApiResponse, StoredCatalog, Ingredient } from '../models/cocktail.model';
+import { SearchType } from '../models/search.model';
 import { environment } from '../../../environments/environment';
 
 const CATALOG_TTL_MS = 24 * 60 * 60 * 1000; 
 
-interface StoredCatalog {
-  storedAt: number;
-  cocktails: Cocktail[];
-}
 
 @Injectable({
   providedIn: 'root'
@@ -106,7 +103,7 @@ export class CocktailService {
     });
   }
 
-  searchLocal(term: string, type: 'name' | 'ingredient' | 'id'): Observable<Cocktail[]> {
+  searchLocal(term: string, type: SearchType): Observable<Cocktail[]> {
     const cleanTerm = term.trim().toLowerCase();
     const currentCatalog = this.catalogSubject.value;
 
@@ -124,7 +121,7 @@ export class CocktailService {
     return of(matches);
   }
 
-  private fetchFromApiAndMerge(term: string, type: 'name' | 'ingredient' | 'id'): Observable<Cocktail[]> {
+  private fetchFromApiAndMerge(term: string, type: SearchType): Observable<Cocktail[]> {
     let endpoint = `${environment.cocktailApiUrl}/search.php?s=${term}`;
     if (type === 'id') endpoint = `${environment.cocktailApiUrl}/lookup.php?i=${term}`;
     if (type === 'ingredient') endpoint = `${environment.cocktailApiUrl}/filter.php?i=${term}`;
@@ -153,7 +150,7 @@ export class CocktailService {
     if (!drinks) return [];
     
     return drinks.map(drink => {
-      const ingredients: { name: string; measure: string }[] = [];
+      const ingredients: Ingredient[] = [];
       
       for (let i = 1; i <= 15; i++) {
         const ingredient = drink[`strIngredient${i}`];

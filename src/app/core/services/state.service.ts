@@ -1,24 +1,25 @@
 import { Injectable } from '@angular/core';
+import { SearchState, SearchType } from '../models/search.model';
 
 @Injectable({
   providedIn: 'root'
 })
 export class StateService {
-  private searchState = {
+  private searchState: SearchState = {
     term: '',
-    type: 'name' as 'name' | 'ingredient' | 'id',
+    type: 'name',
     onlyFavorites: false,
-    scrollPosition: [0, 0] as [number, number]
+    scrollPosition: [0, 0]
   };
 
-  saveState(term: string, type: 'name' | 'ingredient' | 'id', onlyFavorites: boolean): void {
+  saveState(term: string, type: SearchType, onlyFavorites: boolean): void {
     this.searchState.term = term;
     this.searchState.type = type;
     this.searchState.onlyFavorites = onlyFavorites;
     this.searchState.scrollPosition = [window.scrollX, window.scrollY];
   }
 
-  getState() {
+  getState(): SearchState {
     return this.searchState;
   }
 }
