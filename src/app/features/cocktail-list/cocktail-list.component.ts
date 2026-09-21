@@ -193,7 +193,11 @@ export class CocktailListComponent implements OnInit, OnDestroy {
     this.activeMenuId = this.activeMenuId === id ? null : id;
   }
 
+  navigatingId: string | null = null;
+
   viewDetail(id: string): void {
+    this.navigatingId = id;
+    this.cdr.markForCheck();
     this.stateService.saveState(this.searchTerm, this.searchType, this.showOnlyFavorites);
     this.router.navigate(['/detail', id]);
   }
