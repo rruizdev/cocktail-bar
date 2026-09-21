@@ -2,6 +2,7 @@ import { Injectable, NgZone } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { Observable, BehaviorSubject, map, of, tap } from 'rxjs';
 import { Cocktail, CocktailApiResponse } from '../models/cocktail.model';
+import { environment } from '../../../environments/environment';
 
 const CATALOG_TTL_MS = 24 * 60 * 60 * 1000; 
 
@@ -13,9 +14,7 @@ interface StoredCatalog {
 @Injectable({
   providedIn: 'root'
 })
-export class CocktailService {
-  private apiUrl = 'https://www.thecocktaildb.com/api/json/v1/1';
-  
+export class CocktailService {  
   private storageKey = 'coto_cocktails_catalog';
   private favoritesKey = 'coto_cocktail_favorites';
   private broadcastChannel = new BroadcastChannel('coto_cocktails_sync');
@@ -97,7 +96,7 @@ export class CocktailService {
   }
 
   private initCatalog(): void {
-    this.http.get<CocktailApiResponse>(`${this.apiUrl}/search.php?f=a`).pipe(
+    this.http.get<CocktailApiResponse>(`${environment.cocktailApiUrl}/search.php?f=a`).pipe(
       map(res => this.parseCocktails(res.drinks))
     ).subscribe(cocktails => {
       if (cocktails.length > 0) {
@@ -126,9 +125,9 @@ export class CocktailService {
   }
 
   private fetchFromApiAndMerge(term: string, type: 'name' | 'ingredient' | 'id'): Observable<Cocktail[]> {
-    let endpoint = `${this.apiUrl}/search.php?s=${term}`;
-    if (type === 'id') endpoint = `${this.apiUrl}/lookup.php?i=${term}`;
-    if (type === 'ingredient') endpoint = `${this.apiUrl}/filter.php?i=${term}`;
+    let endpoint = `${environment.cocktailApiUrl}/search.php?s=${term}`;
+    if (type === 'id') endpoint = `${environment.cocktailApiUrl}/lookup.php?i=${term}`;
+    if (type === 'ingredient') endpoint = `${environment.cocktailApiUrl}/filter.php?i=${term}`;
 
     return this.http.get<CocktailApiResponse>(endpoint).pipe(
       map(res => this.parseCocktails(res.drinks)),
