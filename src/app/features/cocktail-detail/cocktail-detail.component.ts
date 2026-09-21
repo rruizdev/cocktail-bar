@@ -24,16 +24,21 @@ export class CocktailDetailComponent implements OnInit {
   ngOnInit(): void {
     const id = this.route.snapshot.paramMap.get('id');
     if (id) {
-      this.cocktailService.searchById(id).subscribe({
+      // 1. Busca en el catálogo local de forma instantánea (0ms)
+      this.cocktailService.searchLocal(id, 'id').subscribe({
         next: (data) => {
-          this.cocktail = data && data.length > 0 ? data[0] : null;
+          if (data && data.length > 0) {
+            this.cocktail = data[0];
+          }
           this.loading = false;
         },
         error: (err) => {
-          console.error(err);
+          console.error('Error al obtener el detalle:', err);
           this.loading = false;
         }
       });
+    } else {
+      this.loading = false;
     }
   }
 
