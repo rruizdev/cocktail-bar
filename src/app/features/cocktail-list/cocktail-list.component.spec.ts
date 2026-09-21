@@ -1,7 +1,7 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { RouterTestingModule } from '@angular/router/testing';
-import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
-import { of, BehaviorSubject } from 'rxjs';
+import { Router } from '@angular/router';
+import { of, throwError, BehaviorSubject } from 'rxjs';
 import { CocktailListComponent } from './cocktail-list.component';
 import { CocktailService } from '../../core/services/cocktail.service';
 import { StateService } from '../../core/services/state.service';
@@ -12,6 +12,7 @@ describe('CocktailListComponent', () => {
   let fixture: ComponentFixture<CocktailListComponent>;
   let mockCocktailService: any;
   let mockStateService: any;
+  let router: Router;
 
   beforeEach(async () => {
     const catalogSub = new BehaviorSubject<any[]>([]);
@@ -43,6 +44,7 @@ describe('CocktailListComponent', () => {
       ]
     }).compileComponents();
 
+    router = TestBed.inject(Router);
     fixture = TestBed.createComponent(CocktailListComponent);
     component = fixture.componentInstance;
     fixture.detectChanges();
@@ -63,15 +65,14 @@ describe('CocktailListComponent', () => {
   });
 
   it('debería aplicar el filtro de favoritos correctamente', () => {
-    // Configuramos los mocks
     component.allCocktails = [
       { idDrink: '1', strDrink: 'A', strInstructions: '', strDrinkThumb: '', ingredients: [] },
       { idDrink: '2', strDrink: 'B', strInstructions: '', strDrinkThumb: '', ingredients: [] }
     ];
-    component.favoritesSet = new Set(['1']); // Solo el ID 1 es favorito
+    component.favoritesSet = new Set(['1']);
     
     component.showOnlyFavorites = false;
-    component.toggleFavoritesFilter(); // Cambia a true y ejecuta updateDisplayedCocktails
+    component.toggleFavoritesFilter();
     
     expect(component.showOnlyFavorites).toBe(true);
     expect(component.filteredCocktails.length).toBe(1);
@@ -82,32 +83,56 @@ describe('CocktailListComponent', () => {
     vi.useFakeTimers();
     component.allCocktails = new Array(20).fill({ idDrink: '1' });
     component.currentPage = 1;
-    // Forzamos que se vuelva a calcular la lista filtrada
     (component as any)._filteredDirty = true; 
     
     component.loadMore();
-    vi.advanceTimersByTime(150); // Simulamos el setTimeout de 150ms
+    vi.advanceTimersByTime(150);
     
     expect(component.currentPage).toBe(2);
-    expect(component.displayedCocktails.length).toBe(18); // pageSize es 9
+    expect(component.displayedCocktails.length).toBe(18);
   });
 
   it('debería emitir el término sanitizado al Subject de búsqueda', () => {
     vi.useFakeTimers();
     vi.spyOn(component as any, 'executeSearch');
     
-    // Tipeamos algo con números en el filtro de nombre
     component.searchType = 'name';
     component.onSearchInput('Margarita123'); 
     
-    // Debería sanitizar eliminando los números
     expect(component.searchTerm).toBe('Margarita');
     
-    vi.advanceTimersByTime(250); // Simulamos el debounceTime de 250ms
+    vi.advanceTimersByTime(250);
     
     expect((component as any).executeSearch).toHaveBeenCalled();
   });
+
+  it('debería sanitizar búsqueda de ID sólo permitiendo números', () => {
+    component.searchType = 'id';
+    component.onSearchInput('abc11007xyz');
+    expect(component.searchTerm).toBe('11007');
+  });
+
+  it('debería navegar a detalles al seleccionar un cóctel', () => {
+    const navigateSpy = vi.spyOn(router, 'navigate');
+    component.viewDetail('11007');
+
+    expect(mockStateService.saveState).toHaveBeenCalled();
+    expect(navigateSpy).toHaveBeenCalledWith(['/detail', '11007']);
+  });
+
+  it('debería alternar el menú contextual', () => {
+    expect(component.activeMenuId).toBeNull();
+    component.toggleContextMenu('11007');
+    expect(component.activeMenuId).toBe('11007');
+    component.toggleContextMenu('11007');
+    expect(component.activeMenuId).toBeNull();
+  });
+
+  it('debería mostrar mensaje de error si searchLocal falla', () => {
+    mockCocktailService.searchLocal.mockReturnValue(throwError(() => new Error('Search failed')));
+    component.executeSearch();
+
+    expect(component.errorMessage).toBe('Ocurrió un error al procesar la búsqueda.');
+    expect(component.allCocktails.length).toBe(0);
+  });
 });
-
-
-

@@ -53,17 +53,20 @@ export class CocktailService {
     if (!raw) return [];
 
     try {
-      const stored: StoredCatalog = JSON.parse(raw);
-      if (Date.now() - stored.storedAt > CATALOG_TTL_MS) {
-        localStorage.removeItem(this.storageKey);
-        return [];
+      const parsed = JSON.parse(raw);
+      if (Array.isArray(parsed)) {
+        return parsed;
       }
-      return stored.cocktails ?? [];
+      if (parsed && typeof parsed === 'object' && 'storedAt' in parsed) {
+        const stored: StoredCatalog = parsed;
+        if (Date.now() - stored.storedAt > CATALOG_TTL_MS) {
+          localStorage.removeItem(this.storageKey);
+          return [];
+        }
+        return stored.cocktails ?? [];
+      }
+      return [];
     } catch {
-      try {
-        const legacy: Cocktail[] = JSON.parse(raw);
-        if (Array.isArray(legacy)) return legacy;
-      } catch { /* ignorar */ }
       return [];
     }
   }

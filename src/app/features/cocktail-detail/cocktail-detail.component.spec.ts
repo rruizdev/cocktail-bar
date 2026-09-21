@@ -1,8 +1,7 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { RouterTestingModule } from '@angular/router/testing';
-import { ActivatedRoute } from '@angular/router';
-import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { of } from 'rxjs';
+import { ActivatedRoute, Router } from '@angular/router';
+import { of, throwError } from 'rxjs';
 import { CocktailDetailComponent } from './cocktail-detail.component';
 import { CocktailService } from '../../core/services/cocktail.service';
 
@@ -10,6 +9,7 @@ describe('CocktailDetailComponent', () => {
   let component: CocktailDetailComponent;
   let fixture: ComponentFixture<CocktailDetailComponent>;
   let mockCocktailService: any;
+  let router: Router;
 
   beforeEach(async () => {
     mockCocktailService = {
@@ -34,6 +34,7 @@ describe('CocktailDetailComponent', () => {
       ]
     }).compileComponents();
 
+    router = TestBed.inject(Router);
     fixture = TestBed.createComponent(CocktailDetailComponent);
     component = fixture.componentInstance;
     fixture.detectChanges();
@@ -56,5 +57,10 @@ describe('CocktailDetailComponent', () => {
     expect(isFav).toBe(true);
     expect(mockCocktailService.isFavorite).toHaveBeenCalledWith('11000');
   });
-});
 
+  it('debería navegar hacia atrás con goBack', () => {
+    const navigateSpy = vi.spyOn(router, 'navigate');
+    component.goBack();
+    expect(navigateSpy).toHaveBeenCalledWith(['/']);
+  });
+});
