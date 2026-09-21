@@ -5,20 +5,29 @@
     <!-- Filtros de búsqueda -->
     <div class="row g-3 mt-2">
       <div class="col-md-3">
-        <select class="form-select" [(ngModel)]="searchType" (ngModelChange)="searchTerm = ''">
+        <select class="form-select" [(ngModel)]="searchType" (ngModelChange)="onSearchTypeChange()">
           <option value="name">Nombre (Máx 50 car.)</option>
           <option value="ingredient">Ingrediente</option>
           <option value="id">ID Numérico</option>
         </select>
       </div>
-      <div class="col-md-6">
+      <div class="col-md-6 position-relative">
         <input 
           type="text" 
-          class="form-control" 
+          class="form-control pe-5" 
           [ngModel]="searchTerm" 
           (ngModelChange)="onSearchInput($event)"
-          [placeholder]="'Buscar por ' + searchType + '...'"
+          [placeholder]="getPlaceholder()"
+          [maxlength]="searchType === 'name' ? 50 : null"
         />
+        <!-- Botón para limpiar de golpe -->
+        <button 
+          *ngIf="searchTerm" 
+          type="button" 
+          class="btn btn-sm position-absolute top-50 end-0 translate-middle-y me-2 text-muted border-0 bg-transparent"
+          (click)="searchTerm = ''; executeSearch()">
+          ✕
+        </button>
       </div>
       <div class="col-md-3 d-flex align-items-center">
         <button 

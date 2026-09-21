@@ -1,4 +1,4 @@
-import { Component, OnInit, HostListener, OnDestroy } from '@angular/core';
+import { Component, OnInit, HostListener, OnDestroy, ChangeDetectorRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
@@ -36,21 +36,25 @@ export class CocktailListComponent implements OnInit, OnDestroy {
   constructor(
     private cocktailService: CocktailService, 
     private router: Router,
-    private stateService: StateService
+    private stateService: StateService,
+    private cdr: ChangeDetectorRef
   ) {}
 
   ngOnInit(): void {
-    // Sincronización continua de catálogo y favoritos entre pestañas
+    // Escuchar cambios en el catálogo
     this.catalogSub = this.cocktailService.catalog$.subscribe(() => {
       this.executeSearch();
     });
 
+    // Escuchar favoritos y FORZAR re-renderizado inmediato del DOM
     this.favoritesSub = this.cocktailService.favorites$.subscribe(() => {
       this.updateDisplayedCocktails();
+      // Forzar a Angular a redibujar la vista en tiempo real (vital para pestañas en segundo plano)
+      this.cdr.detectChanges();
     });
 
     const savedState = this.stateService.getState();
-    if (savedState.term) {
+    if (savedState.term || savedState.scrollPosition[1] > 0) {
       this.searchTerm = savedState.term;
       this.searchType = savedState.type;
       this.showOnlyFavorites = savedState.onlyFavorites;
@@ -86,8 +90,8 @@ export class CocktailListComponent implements OnInit, OnDestroy {
         this.updateDisplayedCocktails();
         this.loading = false;
 
-        if (this.allCocktails.length === 0) {
-          this.errorMessage = 'No se encontraron cócteles guardados localmente.';
+        if (this.allCocktails.length === 0 && this.searchTerm.trim() !== '') {
+          this.errorMessage = 'No se encontraron cócteles que coincidan con la búsqueda.';
         }
 
         if (isRestoring) {
@@ -95,10 +99,15 @@ export class CocktailListComponent implements OnInit, OnDestroy {
             window.scrollTo(savedScroll[0], savedScroll[1]);
           }, 100);
         }
+
+        this.cdr.detectChanges();
       },
       error: () => {
         this.loading = false;
-        this.errorMessage = 'Error al procesar la búsqueda local.';
+        this.allCocktails = [];
+        this.updateDisplayedCocktails();
+        this.errorMessage = 'Ocurrió un error al procesar la búsqueda.';
+        this.cdr.detectChanges();
       }
     });
   }
@@ -111,13 +120,14 @@ export class CocktailListComponent implements OnInit, OnDestroy {
       this.currentPage++;
       this.updateDisplayedCocktails();
       this.loadingMore = false;
+      this.cdr.detectChanges();
     }, 150);
   }
 
   private updateDisplayedCocktails(): void {
     const sourceList = this.filteredCocktails;
     const limit = this.currentPage * this.pageSize;
-    this.displayedCocktails = sourceList.slice(0, limit);
+    this.displayedCocktails = [...sourceList.slice(0, limit)];
   }
 
   get filteredCocktails(): Cocktail[] {
@@ -131,6 +141,7 @@ export class CocktailListComponent implements OnInit, OnDestroy {
     this.showOnlyFavorites = !this.showOnlyFavorites;
     this.currentPage = 1;
     this.updateDisplayedCocktails();
+    this.cdr.detectChanges();
   }
 
   @HostListener('window:scroll', [])
@@ -164,5 +175,17 @@ export class CocktailListComponent implements OnInit, OnDestroy {
 
   trackByDrinkId(index: number, cocktail: Cocktail): string {
     return cocktail.idDrink;
+  }
+
+  // Cambia el tipo de filtro, limpia el input y restaura la vista completa
+  onSearchTypeChange(): void {
+    this.searchTerm = '';
+    this.executeSearch();
+  }
+
+  getPlaceholder(): string {
+    if (this.searchType === 'name') return 'Buscar por nombre (máx. 50 letras)...';
+    if (this.searchType === 'ingredient') return 'Buscar por ingrediente (solo letras)...';
+    return 'Buscar por ID (solo números)...';
   }
 }

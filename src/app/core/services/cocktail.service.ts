@@ -1,4 +1,4 @@
-import { Injectable } from '@angular/core';
+import { Injectable, NgZone } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { Observable, BehaviorSubject, map, of, tap } from 'rxjs';
 import { Cocktail, CocktailApiResponse } from '../models/cocktail.model';
@@ -13,30 +13,37 @@ export class CocktailService {
   private favoritesKey = 'coto_cocktail_favorites';
   private broadcastChannel = new BroadcastChannel('coto_cocktails_sync');
 
-  // Estado reactivo en memoria
   private catalogSubject = new BehaviorSubject<Cocktail[]>(this.loadCatalogFromStorage());
   public catalog$ = this.catalogSubject.asObservable();
 
   private favoritesSubject = new BehaviorSubject<string[]>(this.loadFavoritesFromStorage());
   public favorites$ = this.favoritesSubject.asObservable();
 
-  constructor(private http: HttpClient) {
-    // Escuchar eventos de sincronización entre pestañas
+  constructor(private http: HttpClient, private ngZone: NgZone) {
+    // Escuchar el canal entre pestañas
     this.broadcastChannel.onmessage = (event) => {
-      if (event.data?.type === 'FAVS_UPDATED') {
-        this.favoritesSubject.next(event.data.favorites);
-      } else if (event.data?.type === 'CATALOG_UPDATED') {
-        this.catalogSubject.next(event.data.catalog);
-      }
+      this.ngZone.run(() => {
+        if (event.data?.type === 'FAVS_UPDATED') {
+          this.favoritesSubject.next([...event.data.favorites]);
+        } else if (event.data?.type === 'CATALOG_UPDATED') {
+          this.catalogSubject.next([...event.data.catalog]);
+        }
+      });
     };
 
-    // Carga inicial rápida si el storage local está vacío
+    // Escuchar storage nativo por si la pestaña estuvo dormida
+    window.addEventListener('storage', (event) => {
+      if (event.key === this.favoritesKey && event.newValue) {
+        this.ngZone.run(() => {
+          this.favoritesSubject.next(JSON.parse(event.newValue!));
+        });
+      }
+    });
+
     if (this.catalogSubject.value.length === 0) {
       this.initCatalog();
     }
   }
-
-  // --- PERSISTENCIA LOCAL ---
 
   private loadCatalogFromStorage(): Cocktail[] {
     const stored = localStorage.getItem(this.storageKey);
@@ -48,12 +55,6 @@ export class CocktailService {
     return stored ? JSON.parse(stored) : [];
   }
 
-  private saveCatalog(catalog: Cocktail[]): void {
-    localStorage.setItem(this.storageKey, JSON.stringify(catalog));
-    this.catalogSubject.next(catalog);
-    this.broadcastChannel.postMessage({ type: 'CATALOG_UPDATED', catalog });
-  }
-
   public toggleFavorite(idDrink: string): void {
     let currentFavs = this.loadFavoritesFromStorage();
     if (currentFavs.includes(idDrink)) {
@@ -63,30 +64,29 @@ export class CocktailService {
     }
     
     localStorage.setItem(this.favoritesKey, JSON.stringify(currentFavs));
-    this.favoritesSubject.next(currentFavs);
+    this.favoritesSubject.next([...currentFavs]);
 
-    // Notificar a las demás pestañas de forma instantánea
-    this.broadcastChannel.postMessage({ type: 'FAVS_UPDATED', favorites: currentFavs });
+    // Emitir a otras pestañas
+    this.broadcastChannel.postMessage({
+      type: 'FAVS_UPDATED',
+      favorites: currentFavs
+    });
   }
 
   public isFavorite(idDrink: string): boolean {
     return this.favoritesSubject.value.includes(idDrink);
   }
 
-  // --- SEMILLA INICIAL (Descarga única y ligera) ---
-
   private initCatalog(): void {
-    // Traemos un lote inicial liviano para arrancar al instante sin demoras
     this.http.get<CocktailApiResponse>(`${this.apiUrl}/search.php?f=a`).pipe(
       map(res => this.parseCocktails(res.drinks))
     ).subscribe(cocktails => {
       if (cocktails.length > 0) {
-        this.saveCatalog(cocktails);
+        localStorage.setItem(this.storageKey, JSON.stringify(cocktails));
+        this.catalogSubject.next(cocktails);
       }
     });
   }
-
-  // --- BÚSQUEDAS LOCALES (0ms de latencia de red) ---
 
   searchLocal(term: string, type: 'name' | 'ingredient' | 'id'): Observable<Cocktail[]> {
     const cleanTerm = term.trim().toLowerCase();
@@ -96,7 +96,6 @@ export class CocktailService {
       return of(currentCatalog);
     }
 
-    // Si la búsqueda no está en el catálogo local, hacemos un fetch puntual a la API
     const matches = currentCatalog.filter(c => {
       if (type === 'name') return c.strDrink.toLowerCase().includes(cleanTerm);
       if (type === 'id') return c.idDrink === cleanTerm;
@@ -104,12 +103,7 @@ export class CocktailService {
       return false;
     });
 
-    if (matches.length > 0) {
-      return of(matches);
-    }
-
-    // Fallback a la API solo si no hay resultados locales, y lo sumamos al almacenamiento
-    return this.fetchFromApiAndMerge(cleanTerm, type);
+    return of(matches);
   }
 
   private fetchFromApiAndMerge(term: string, type: 'name' | 'ingredient' | 'id'): Observable<Cocktail[]> {
@@ -124,7 +118,9 @@ export class CocktailService {
           const current = this.loadCatalogFromStorage();
           const existingIds = new Set(current.map(c => c.idDrink));
           const merged = [...current, ...newCocktails.filter(c => !existingIds.has(c.idDrink))];
-          this.saveCatalog(merged);
+          localStorage.setItem(this.storageKey, JSON.stringify(merged));
+          this.catalogSubject.next(merged);
+          this.broadcastChannel.postMessage({ type: 'CATALOG_UPDATED', catalog: merged });
         }
       })
     );

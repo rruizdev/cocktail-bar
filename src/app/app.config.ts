@@ -8,7 +8,7 @@ export const appConfig: ApplicationConfig = {
     provideHttpClient(),
     provideBrowserGlobalErrorListeners(),
     provideRouter(routes, withInMemoryScrolling({
-        scrollPositionRestoration: 'enabled', // Restaura automáticamente la posición X,Y al volver atrás
+        scrollPositionRestoration: 'enabled',
         anchorScrolling: 'enabled'
     }))
   ]
