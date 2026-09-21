@@ -1,23 +1,31 @@
-import { Component, OnInit, HostListener, OnDestroy, ChangeDetectorRef } from '@angular/core';
+import {
+  Component,
+  OnInit,
+  OnDestroy,
+  ChangeDetectionStrategy,
+  ChangeDetectorRef
+} from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
+import { Subject, Subscription, fromEvent } from 'rxjs';
+import { debounceTime, distinctUntilChanged, throttleTime } from 'rxjs/operators';
 import { CocktailService } from '../../core/services/cocktail.service';
 import { StateService } from '../../core/services/state.service';
 import { Cocktail } from '../../core/models/cocktail.model';
-import { Subscription } from 'rxjs';
 
 @Component({
   selector: 'app-cocktail-list',
   standalone: true,
   imports: [CommonModule, FormsModule],
   templateUrl: './cocktail-list.component.html',
-  styleUrls: ['./cocktail-list.component.scss']
+  styleUrls: ['./cocktail-list.component.scss'],
+  changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class CocktailListComponent implements OnInit, OnDestroy {
   allCocktails: Cocktail[] = [];
   displayedCocktails: Cocktail[] = [];
-  
+
   loading = false;
   loadingMore = false;
   errorMessage = '';
@@ -30,41 +38,63 @@ export class CocktailListComponent implements OnInit, OnDestroy {
   showOnlyFavorites = false;
   activeMenuId: string | null = null;
 
+  favoritesSet = new Set<string>();
+
+  private _filteredCocktails: Cocktail[] = [];
+  private _filteredDirty = true;
+
+  // #2: Subject<string> — distinctUntilChanged compara el término real,
+  // no undefined (que era el caso con Subject<void> y bloqueaba todas las emisiones)
+  private searchSubject = new Subject<string>();
+
   private catalogSub!: Subscription;
   private favoritesSub!: Subscription;
+  private searchSub!: Subscription;
+  private scrollSub!: Subscription;
 
   constructor(
-    private cocktailService: CocktailService, 
+    private cocktailService: CocktailService,
     private router: Router,
     private stateService: StateService,
     private cdr: ChangeDetectorRef
   ) {}
 
   ngOnInit(): void {
-    // Escuchar cambios en el catálogo
+    this.searchSub = this.searchSubject.pipe(
+      debounceTime(250),
+      distinctUntilChanged()
+    ).subscribe(() => this.executeSearch());
+
     this.catalogSub = this.cocktailService.catalog$.subscribe(() => {
+      this._filteredDirty = true;
       this.executeSearch();
     });
 
-    // Escuchar favoritos y FORZAR re-renderizado inmediato del DOM
-    this.favoritesSub = this.cocktailService.favorites$.subscribe(() => {
+    this.favoritesSub = this.cocktailService.favorites$.subscribe(favs => {
+      this.favoritesSet = new Set(favs);
+      this._filteredDirty = true;
       this.updateDisplayedCocktails();
-      // Forzar a Angular a redibujar la vista en tiempo real (vital para pestañas en segundo plano)
-      this.cdr.detectChanges();
+      this.cdr.markForCheck();
     });
 
+    this.scrollSub = fromEvent(window, 'scroll').pipe(
+      throttleTime(100, undefined, { leading: true, trailing: true })
+    ).subscribe(() => this.onWindowScroll());
+
     const savedState = this.stateService.getState();
-    if (savedState.term || savedState.scrollPosition[1] > 0) {
+    if (savedState.term) {
       this.searchTerm = savedState.term;
       this.searchType = savedState.type;
       this.showOnlyFavorites = savedState.onlyFavorites;
-      this.executeSearch(true, savedState.scrollPosition);
+      this.executeSearch();
     }
   }
 
   ngOnDestroy(): void {
-    if (this.catalogSub) this.catalogSub.unsubscribe();
-    if (this.favoritesSub) this.favoritesSub.unsubscribe();
+    this.catalogSub?.unsubscribe();
+    this.favoritesSub?.unsubscribe();
+    this.searchSub?.unsubscribe();
+    this.scrollSub?.unsubscribe();
   }
 
   onSearchInput(value: string): void {
@@ -76,17 +106,20 @@ export class CocktailListComponent implements OnInit, OnDestroy {
       this.searchTerm = value.replace(/[^0-9]/g, '');
     }
 
-    this.executeSearch();
+    // Emitir el término real para que distinctUntilChanged lo compare correctamente
+    this.searchSubject.next(this.searchTerm);
   }
 
-  executeSearch(isRestoring = false, savedScroll: [number, number] = [0, 0]): void {
+  executeSearch(): void {
     this.loading = true;
     this.errorMessage = '';
     this.currentPage = 1;
+    this._filteredDirty = true;
 
     this.cocktailService.searchLocal(this.searchTerm, this.searchType).subscribe({
       next: (data) => {
-        this.allCocktails = data || [];
+        this.allCocktails = data ?? [];
+        this._filteredDirty = true;
         this.updateDisplayedCocktails();
         this.loading = false;
 
@@ -94,20 +127,15 @@ export class CocktailListComponent implements OnInit, OnDestroy {
           this.errorMessage = 'No se encontraron cócteles que coincidan con la búsqueda.';
         }
 
-        if (isRestoring) {
-          setTimeout(() => {
-            window.scrollTo(savedScroll[0], savedScroll[1]);
-          }, 100);
-        }
-
-        this.cdr.detectChanges();
+        this.cdr.markForCheck();
       },
       error: () => {
         this.loading = false;
         this.allCocktails = [];
+        this._filteredDirty = true;
         this.updateDisplayedCocktails();
         this.errorMessage = 'Ocurrió un error al procesar la búsqueda.';
-        this.cdr.detectChanges();
+        this.cdr.markForCheck();
       }
     });
   }
@@ -120,35 +148,36 @@ export class CocktailListComponent implements OnInit, OnDestroy {
       this.currentPage++;
       this.updateDisplayedCocktails();
       this.loadingMore = false;
-      this.cdr.detectChanges();
+      this.cdr.markForCheck();
     }, 150);
   }
 
   private updateDisplayedCocktails(): void {
-    const sourceList = this.filteredCocktails;
     const limit = this.currentPage * this.pageSize;
-    this.displayedCocktails = [...sourceList.slice(0, limit)];
+    this.displayedCocktails = this.filteredCocktails.slice(0, limit);
   }
 
   get filteredCocktails(): Cocktail[] {
-    if (this.showOnlyFavorites) {
-      return this.allCocktails.filter(c => this.isFavorite(c.idDrink));
+    if (this._filteredDirty) {
+      this._filteredCocktails = this.showOnlyFavorites
+        ? this.allCocktails.filter(c => this.favoritesSet.has(c.idDrink))
+        : this.allCocktails;
+      this._filteredDirty = false;
     }
-    return this.allCocktails;
+    return this._filteredCocktails;
   }
 
   toggleFavoritesFilter(): void {
     this.showOnlyFavorites = !this.showOnlyFavorites;
     this.currentPage = 1;
+    this._filteredDirty = true;
     this.updateDisplayedCocktails();
-    this.cdr.detectChanges();
+    this.cdr.markForCheck();
   }
 
-  @HostListener('window:scroll', [])
   onWindowScroll(): void {
     const pos = (document.documentElement.scrollTop || document.body.scrollTop) + window.innerHeight;
     const max = document.documentElement.scrollHeight - 100;
-
     if (pos >= max) {
       this.loadMore();
     }
@@ -157,10 +186,6 @@ export class CocktailListComponent implements OnInit, OnDestroy {
   toggleFavorite(id: string, event: Event): void {
     event.stopPropagation();
     this.cocktailService.toggleFavorite(id);
-  }
-
-  isFavorite(id: string): boolean {
-    return this.cocktailService.isFavorite(id);
   }
 
   toggleContextMenu(id: string, event: Event): void {
@@ -173,11 +198,10 @@ export class CocktailListComponent implements OnInit, OnDestroy {
     this.router.navigate(['/detail', id]);
   }
 
-  trackByDrinkId(index: number, cocktail: Cocktail): string {
+  trackByDrinkId(_index: number, cocktail: Cocktail): string {
     return cocktail.idDrink;
   }
 
-  // Cambia el tipo de filtro, limpia el input y restaura la vista completa
   onSearchTypeChange(): void {
     this.searchTerm = '';
     this.executeSearch();

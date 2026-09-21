@@ -1,16 +1,20 @@
 import { Routes } from '@angular/router';
-import { CocktailListComponent } from './features/cocktail-list/cocktail-list.component';
-import { CocktailDetailComponent } from './features/cocktail-detail/cocktail-detail.component';
 
 export const routes: Routes = [
   {
     path: '',
-    component: CocktailListComponent,
+    loadComponent: () =>
+      import('./features/cocktail-list/cocktail-list.component').then(
+        m => m.CocktailListComponent
+      ),
     title: 'Bar Manager - Listado'
   },
   {
     path: 'detail/:id',
-    component: CocktailDetailComponent,
+    loadComponent: () =>
+      import('./features/cocktail-detail/cocktail-detail.component').then(
+        m => m.CocktailDetailComponent
+      ),
     title: 'Bar Manager - Detalle'
   },
   {

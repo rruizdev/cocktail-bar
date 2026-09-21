@@ -100,11 +100,11 @@
           [attr.aria-label]="'Menú de opciones de ' + cocktail.strDrink">
           <button type="button" role="menuitem" class="dropdown-item" (click)="viewDetail(cocktail.idDrink)">Ver detalles</button>
           <button type="button" role="menuitem" class="dropdown-item" (click)="toggleFavorite(cocktail.idDrink, $event)">
-            {{ isFavorite(cocktail.idDrink) ? 'Remover de favoritos' : 'Añadir a favoritos' }}
+            {{ favoritesSet.has(cocktail.idDrink) ? 'Remover de favoritos' : 'Añadir a favoritos' }}
           </button>
         </div>
 
-        <img [src]="cocktail.strDrinkThumb" class="card-img-top cocktail-card-img" [alt]="'Fotografía de ' + cocktail.strDrink">
+        <img [src]="cocktail.strDrinkThumb" class="card-img-top cocktail-card-img" [alt]="'Fotografía de ' + cocktail.strDrink" loading="lazy">
         
         <div class="card-body">
           <h2 class="card-title h5 text-truncate">{{ cocktail.strDrink }}</h2>
@@ -112,21 +112,20 @@
           <button 
             type="button"
             class="btn btn-sm mt-2" 
-            [class.btn-danger]="isFavorite(cocktail.idDrink)" 
-            [class.btn-outline-danger]="!isFavorite(cocktail.idDrink)"
-            [attr.aria-pressed]="isFavorite(cocktail.idDrink)"
-            [attr.aria-label]="(isFavorite(cocktail.idDrink) ? 'Remover de favoritos ' : 'Agregar a favoritos ') + cocktail.strDrink"
+            [class.btn-danger]="favoritesSet.has(cocktail.idDrink)" 
+            [class.btn-outline-danger]="!favoritesSet.has(cocktail.idDrink)"
+            [attr.aria-pressed]="favoritesSet.has(cocktail.idDrink)"
+            [attr.aria-label]="(favoritesSet.has(cocktail.idDrink) ? 'Remover de favoritos ' : 'Agregar a favoritos ') + cocktail.strDrink"
             (click)="toggleFavorite(cocktail.idDrink, $event)"
             (keydown.enter)="toggleFavorite(cocktail.idDrink, $event)"
             (keydown.space)="$event.stopPropagation(); toggleFavorite(cocktail.idDrink, $event)">
-            {{ isFavorite(cocktail.idDrink) ? '♥ Favorito' : '♡ Agregar a favoritos' }}
+            {{ favoritesSet.has(cocktail.idDrink) ? '♥ Favorito' : '♡ Agregar a favoritos' }}
           </button>
         </div>
       </div>
     </div>
   </div>
 
-  <!-- Loader de Infinite Scroll -->
   <div *ngIf="loadingMore" class="text-center py-3" role="status" aria-live="polite">
     <div class="spinner-border spinner-border-sm text-primary" role="status">
       <span class="visually-hidden">Cargando más tragos...</span>

@@ -3,6 +3,13 @@ import { HttpClient } from '@angular/common/http';
 import { Observable, BehaviorSubject, map, of, tap } from 'rxjs';
 import { Cocktail, CocktailApiResponse } from '../models/cocktail.model';
 
+const CATALOG_TTL_MS = 24 * 60 * 60 * 1000; 
+
+interface StoredCatalog {
+  storedAt: number;
+  cocktails: Cocktail[];
+}
+
 @Injectable({
   providedIn: 'root'
 })
@@ -20,7 +27,6 @@ export class CocktailService {
   public favorites$ = this.favoritesSubject.asObservable();
 
   constructor(private http: HttpClient, private ngZone: NgZone) {
-    // Escuchar el canal entre pestañas
     this.broadcastChannel.onmessage = (event) => {
       this.ngZone.run(() => {
         if (event.data?.type === 'FAVS_UPDATED') {
@@ -31,7 +37,6 @@ export class CocktailService {
       });
     };
 
-    // Escuchar storage nativo por si la pestaña estuvo dormida
     window.addEventListener('storage', (event) => {
       if (event.key === this.favoritesKey && event.newValue) {
         this.ngZone.run(() => {
@@ -46,8 +51,23 @@ export class CocktailService {
   }
 
   private loadCatalogFromStorage(): Cocktail[] {
-    const stored = localStorage.getItem(this.storageKey);
-    return stored ? JSON.parse(stored) : [];
+    const raw = localStorage.getItem(this.storageKey);
+    if (!raw) return [];
+
+    try {
+      const stored: StoredCatalog = JSON.parse(raw);
+      if (Date.now() - stored.storedAt > CATALOG_TTL_MS) {
+        localStorage.removeItem(this.storageKey);
+        return [];
+      }
+      return stored.cocktails ?? [];
+    } catch {
+      try {
+        const legacy: Cocktail[] = JSON.parse(raw);
+        if (Array.isArray(legacy)) return legacy;
+      } catch { /* ignorar */ }
+      return [];
+    }
   }
 
   private loadFavoritesFromStorage(): string[] {
@@ -56,7 +76,7 @@ export class CocktailService {
   }
 
   public toggleFavorite(idDrink: string): void {
-    let currentFavs = this.loadFavoritesFromStorage();
+    let currentFavs = [...this.favoritesSubject.value];
     if (currentFavs.includes(idDrink)) {
       currentFavs = currentFavs.filter(id => id !== idDrink);
     } else {
@@ -64,9 +84,8 @@ export class CocktailService {
     }
     
     localStorage.setItem(this.favoritesKey, JSON.stringify(currentFavs));
-    this.favoritesSubject.next([...currentFavs]);
+    this.favoritesSubject.next(currentFavs);
 
-    // Emitir a otras pestañas
     this.broadcastChannel.postMessage({
       type: 'FAVS_UPDATED',
       favorites: currentFavs
@@ -82,7 +101,7 @@ export class CocktailService {
       map(res => this.parseCocktails(res.drinks))
     ).subscribe(cocktails => {
       if (cocktails.length > 0) {
-        localStorage.setItem(this.storageKey, JSON.stringify(cocktails));
+        this.persistCatalog(cocktails);
         this.catalogSubject.next(cocktails);
       }
     });
@@ -115,15 +134,20 @@ export class CocktailService {
       map(res => this.parseCocktails(res.drinks)),
       tap(newCocktails => {
         if (newCocktails.length > 0) {
-          const current = this.loadCatalogFromStorage();
+          const current = this.catalogSubject.value;
           const existingIds = new Set(current.map(c => c.idDrink));
           const merged = [...current, ...newCocktails.filter(c => !existingIds.has(c.idDrink))];
-          localStorage.setItem(this.storageKey, JSON.stringify(merged));
+          this.persistCatalog(merged);
           this.catalogSubject.next(merged);
           this.broadcastChannel.postMessage({ type: 'CATALOG_UPDATED', catalog: merged });
         }
       })
     );
+  }
+
+  private persistCatalog(cocktails: Cocktail[]): void {
+    const payload: StoredCatalog = { storedAt: Date.now(), cocktails };
+    localStorage.setItem(this.storageKey, JSON.stringify(payload));
   }
 
   private parseCocktails(drinks: any[] | null): Cocktail[] {

@@ -24,7 +24,6 @@ export class CocktailDetailComponent implements OnInit {
   ngOnInit(): void {
     const id = this.route.snapshot.paramMap.get('id');
     if (id) {
-      // 1. Busca en el catálogo local de forma instantánea (0ms)
       this.cocktailService.searchLocal(id, 'id').subscribe({
         next: (data) => {
           if (data && data.length > 0) {
