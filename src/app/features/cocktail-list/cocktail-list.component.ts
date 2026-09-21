@@ -12,7 +12,7 @@ import { debounceTime, distinctUntilChanged, throttleTime } from 'rxjs/operators
 import { CocktailService } from '../../core/services/cocktail.service';
 import { StateService } from '../../core/services/state.service';
 import { Cocktail } from '../../core/models/cocktail.model';
-import { SearchType } from '../../core/models/search.model';
+import { SearchType } from "../../core/models/search-type.model";
 import { CocktailCardComponent } from '../../shared/components/cocktail-card/cocktail-card.component';
 import { CocktailSearchComponent } from '../../shared/components/cocktail-search/cocktail-search.component';
 

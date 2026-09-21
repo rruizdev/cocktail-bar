@@ -1,7 +1,4 @@
-export interface Ingredient {
-  name: string;
-  measure: string;
-}
+import { Ingredient } from "./Ingredient.model";
 
 export interface Cocktail {
   idDrink: string;
@@ -18,7 +15,4 @@ export interface CocktailApiResponse {
   drinks: any[] | null;
 }
 
-export interface StoredCatalog {
-  storedAt: number;
-  cocktails: Cocktail[];
-}
+

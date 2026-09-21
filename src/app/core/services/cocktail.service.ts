@@ -1,8 +1,10 @@
 import { Injectable, NgZone } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { Observable, BehaviorSubject, map, of, tap } from 'rxjs';
-import { Cocktail, CocktailApiResponse, StoredCatalog, Ingredient } from '../models/cocktail.model';
-import { SearchType } from '../models/search.model';
+import { Cocktail, CocktailApiResponse } from '../models/cocktail.model';
+import { StoredCatalog } from "../models/stored-catalog.model";
+import { Ingredient } from "../models/Ingredient.model";
+import { SearchType } from "../models/search-type.model";
 import { environment } from '../../../environments/environment';
 
 const CATALOG_TTL_MS = 24 * 60 * 60 * 1000; 

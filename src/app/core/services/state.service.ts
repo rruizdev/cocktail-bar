@@ -1,5 +1,6 @@
 import { Injectable } from '@angular/core';
-import { SearchState, SearchType } from '../models/search.model';
+import { SearchState } from '../models/search.model';
+import { SearchType } from "../models/search-type.model";
 
 @Injectable({
   providedIn: 'root'

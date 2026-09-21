@@ -1,4 +1,4 @@
-export type SearchType = 'name' | 'ingredient' | 'id';
+import { SearchType } from "./search-type.model";
 
 export interface SearchState {
   term: string;
