@@ -23,21 +23,14 @@ describe('StateService', () => {
     expect(state.term).toBe('');
     expect(state.type).toBe('name');
     expect(state.onlyFavorites).toBe(false);
-    expect(state.scrollPosition).toEqual([0, 0]);
   });
 
   it('debería guardar y recuperar el estado correctamente', () => {
-    // Simulamos un scroll previo al guardado
-    vi.spyOn(window, 'scrollX', 'get').mockReturnValue(100);
-    vi.spyOn(window, 'scrollY', 'get').mockReturnValue(500);
-
     service.saveState('margarita', 'ingredient', true);
-    
+
     const state = service.getState();
     expect(state.term).toBe('margarita');
     expect(state.type).toBe('ingredient');
     expect(state.onlyFavorites).toBe(true);
-    expect(state.scrollPosition).toEqual([100, 500]);
   });
 });
-

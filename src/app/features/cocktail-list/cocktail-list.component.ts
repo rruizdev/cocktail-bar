@@ -1,18 +1,21 @@
 import {
   Component,
   OnInit,
-  OnDestroy,
   ChangeDetectionStrategy,
-  ChangeDetectorRef
+  DestroyRef,
+  inject,
+  signal,
+  computed,
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { Router } from '@angular/router';
-import { Subject, Subscription, fromEvent } from 'rxjs';
+import { Subject, fromEvent } from 'rxjs';
 import { debounceTime, distinctUntilChanged, throttleTime } from 'rxjs/operators';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { CocktailService } from '../../core/services/cocktail.service';
 import { StateService } from '../../core/services/state.service';
 import { Cocktail } from '../../core/models/cocktail.model';
-import { SearchType } from "../../core/models/search-type.model";
+import { SearchType } from '../../core/models/search-type.model';
 import { CocktailCardComponent } from '../../shared/components/cocktail-card/cocktail-card.component';
 import { CocktailSearchComponent } from '../../shared/components/cocktail-search/cocktail-search.component';
 
@@ -22,167 +25,115 @@ import { CocktailSearchComponent } from '../../shared/components/cocktail-search
   imports: [CommonModule, CocktailCardComponent, CocktailSearchComponent],
   templateUrl: './cocktail-list.component.html',
   styleUrls: ['./cocktail-list.component.scss'],
-  changeDetection: ChangeDetectionStrategy.OnPush
+  changeDetection: ChangeDetectionStrategy.OnPush,
 })
-export class CocktailListComponent implements OnInit, OnDestroy {
-  allCocktails: Cocktail[] = [];
-  displayedCocktails: Cocktail[] = [];
+export class CocktailListComponent implements OnInit {
+  readonly pageSize = 9;
 
-  loading = false;
-  loadingMore = false;
-  errorMessage = '';
+  readonly searchType = signal<SearchType>('name');
+  readonly searchTerm = signal('');
+  readonly showOnlyFavorites = signal(false);
+  readonly currentPage = signal(1);
+  readonly loading = signal(false);
+  readonly loadingMore = signal(false);
+  readonly errorMessage = signal('');
+  readonly allCocktails = signal<Cocktail[]>([]);
+  readonly favoritesSet = signal<Set<string>>(new Set());
+  readonly activeMenuId = signal<string | null>(null);
+  readonly navigatingId = signal<string | null>(null);
 
-  pageSize = 9;
-  currentPage = 1;
+  readonly filteredCocktails = computed<Cocktail[]>(() => {
+    const all = this.allCocktails();
+    if (!this.showOnlyFavorites()) return all;
+    const favorites = this.favoritesSet();
+    return all.filter((c) => favorites.has(c.idDrink));
+  });
 
-  searchType: SearchType = 'name';
-  searchTerm = '';
-  showOnlyFavorites = false;
-  activeMenuId: string | null = null;
+  readonly displayedCocktails = computed<Cocktail[]>(() =>
+    this.filteredCocktails().slice(0, this.currentPage() * this.pageSize),
+  );
 
-  favoritesSet = new Set<string>();
-
-  private _filteredCocktails: Cocktail[] = [];
-  private _filteredDirty = true;
-
-  private searchSubject = new Subject<string>();
-
-  private catalogSub!: Subscription;
-  private favoritesSub!: Subscription;
-  private searchSub!: Subscription;
-  private scrollSub!: Subscription;
-
-  constructor(
-    private cocktailService: CocktailService,
-    private router: Router,
-    private stateService: StateService,
-    private cdr: ChangeDetectorRef
-  ) {}
+  private readonly searchSubject = new Subject<string>();
+  private readonly destroyRef = inject(DestroyRef);
+  private readonly cocktailService = inject(CocktailService);
+  private readonly router = inject(Router);
+  private readonly stateService = inject(StateService);
 
   ngOnInit(): void {
-    this.searchSub = this.searchSubject.pipe(
-      debounceTime(250),
-      distinctUntilChanged()
-    ).subscribe(() => this.executeSearch());
+    this.searchSubject
+      .pipe(debounceTime(250), distinctUntilChanged(), takeUntilDestroyed(this.destroyRef))
+      .subscribe(() => this.executeSearch());
 
-    this.catalogSub = this.cocktailService.catalog$.subscribe(() => {
-      this._filteredDirty = true;
-      this.executeSearch();
-    });
+    this.cocktailService.catalog$
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe(() => this.executeSearch());
 
-    this.favoritesSub = this.cocktailService.favorites$.subscribe(favs => {
-      this.favoritesSet = new Set(favs);
-      this._filteredDirty = true;
-      this.updateDisplayedCocktails();
-      this.cdr.markForCheck();
-    });
+    this.cocktailService.favorites$
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe((favs) => this.favoritesSet.set(new Set(favs)));
 
-    this.scrollSub = fromEvent(window, 'scroll').pipe(
-      throttleTime(100, undefined, { leading: true, trailing: true })
-    ).subscribe(() => this.onWindowScroll());
+    fromEvent(window, 'scroll')
+      .pipe(
+        throttleTime(100, undefined, { leading: true, trailing: true }),
+        takeUntilDestroyed(this.destroyRef),
+      )
+      .subscribe(() => this.onWindowScroll());
 
-    const savedState = this.stateService.getState();
-    if (savedState.term) {
-      this.searchTerm = savedState.term;
-      this.searchType = savedState.type;
-      this.showOnlyFavorites = savedState.onlyFavorites;
+    const saved = this.stateService.getState();
+    if (saved.term) {
+      this.searchTerm.set(saved.term);
+      this.searchType.set(saved.type);
+      this.showOnlyFavorites.set(saved.onlyFavorites);
       this.executeSearch();
     }
-  }
-
-  ngOnDestroy(): void {
-    this.catalogSub?.unsubscribe();
-    this.favoritesSub?.unsubscribe();
-    this.searchSub?.unsubscribe();
-    this.scrollSub?.unsubscribe();
   }
 
   onSearchInput(value: string): void {
-    if (this.searchType === 'name') {
-      this.searchTerm = value.replace(/[^a-zA-Z\s]/g, '').slice(0, 50);
-    } else if (this.searchType === 'ingredient') {
-      this.searchTerm = value.replace(/[^a-zA-Z\s]/g, '');
-    } else if (this.searchType === 'id') {
-      this.searchTerm = value.replace(/[^0-9]/g, '');
-    }
+    const sanitized =
+      this.searchType() === 'id' ? value.replace(/[^0-9]/g, '') : value.replace(/[^a-zA-Z\s]/g, '');
 
-    this.searchSubject.next(this.searchTerm);
+    this.searchTerm.set(this.searchType() === 'name' ? sanitized.slice(0, 50) : sanitized);
+    this.searchSubject.next(this.searchTerm());
   }
 
   executeSearch(): void {
-    this.loading = true;
-    this.errorMessage = '';
-    this.currentPage = 1;
-    this._filteredDirty = true;
-
-    this.cocktailService.searchLocal(this.searchTerm, this.searchType).subscribe({
-      next: (data) => {
-        this.allCocktails = data ?? [];
-        this._filteredDirty = true;
-        this.updateDisplayedCocktails();
-        this.loading = false;
-
-        if (this.allCocktails.length === 0 && this.searchTerm.trim() !== '') {
-          this.errorMessage = 'No se encontraron cócteles que coincidan con la búsqueda.';
-        }
-
-        this.cdr.markForCheck();
-      },
-      error: () => {
-        this.loading = false;
-        this.allCocktails = [];
-        this._filteredDirty = true;
-        this.updateDisplayedCocktails();
-        this.errorMessage = 'Ocurrió un error al procesar la búsqueda.';
-        this.cdr.markForCheck();
-      }
-    });
+    this.loading.set(true);
+    const results = this.cocktailService.searchLocal(this.searchTerm(), this.searchType());
+    this.allCocktails.set(results);
+    this.currentPage.set(1);
+    this.loading.set(false);
+    this.errorMessage.set(
+      results.length === 0 && this.searchTerm().trim() !== ''
+        ? 'No se encontraron cócteles que coincidan con la búsqueda.'
+        : '',
+    );
   }
 
   loadMore(): void {
-    if (this.loadingMore || this.displayedCocktails.length >= this.filteredCocktails.length) return;
+    if (this.loadingMore() || this.displayedCocktails().length >= this.filteredCocktails().length)
+      return;
 
-    this.loadingMore = true;
+    this.loadingMore.set(true);
     setTimeout(() => {
-      this.currentPage++;
-      this.updateDisplayedCocktails();
-      this.loadingMore = false;
-      this.cdr.markForCheck();
+      this.currentPage.update((page) => page + 1);
+      this.loadingMore.set(false);
     }, 150);
   }
 
-  private updateDisplayedCocktails(): void {
-    const limit = this.currentPage * this.pageSize;
-    this.displayedCocktails = this.filteredCocktails.slice(0, limit);
-  }
-
-  get filteredCocktails(): Cocktail[] {
-    if (this._filteredDirty) {
-      this._filteredCocktails = this.showOnlyFavorites
-        ? this.allCocktails.filter(c => this.favoritesSet.has(c.idDrink))
-        : this.allCocktails;
-      this._filteredDirty = false;
-    }
-    return this._filteredCocktails;
-  }
-
   toggleFavoritesFilter(): void {
-    this.showOnlyFavorites = !this.showOnlyFavorites;
-    this.currentPage = 1;
-    this._filteredDirty = true;
-    this.updateDisplayedCocktails();
-    this.cdr.markForCheck();
+    this.showOnlyFavorites.update((value) => !value);
+    this.currentPage.set(1);
   }
 
   clearSearch(): void {
-    this.searchTerm = '';
+    this.searchTerm.set('');
     this.executeSearch();
   }
 
   onWindowScroll(): void {
-    const pos = (document.documentElement.scrollTop || document.body.scrollTop) + window.innerHeight;
-    const max = document.documentElement.scrollHeight - 100;
-    if (pos >= max) {
+    const pos =
+      (document.documentElement.scrollTop || document.body.scrollTop) + window.innerHeight;
+    if (pos >= document.documentElement.scrollHeight - 100) {
       this.loadMore();
     }
   }
@@ -192,15 +143,12 @@ export class CocktailListComponent implements OnInit, OnDestroy {
   }
 
   toggleContextMenu(id: string): void {
-    this.activeMenuId = this.activeMenuId === id ? null : id;
+    this.activeMenuId.set(this.activeMenuId() === id ? null : id);
   }
 
-  navigatingId: string | null = null;
-
   viewDetail(id: string): void {
-    this.navigatingId = id;
-    this.cdr.markForCheck();
-    this.stateService.saveState(this.searchTerm, this.searchType, this.showOnlyFavorites);
+    this.navigatingId.set(id);
+    this.stateService.saveState(this.searchTerm(), this.searchType(), this.showOnlyFavorites());
     this.router.navigate(['/detail', id]);
   }
 
@@ -209,8 +157,8 @@ export class CocktailListComponent implements OnInit, OnDestroy {
   }
 
   onSearchTypeChange(type: SearchType): void {
-    this.searchType = type;
-    this.searchTerm = '';
+    this.searchType.set(type);
+    this.searchTerm.set('');
     this.executeSearch();
   }
 }

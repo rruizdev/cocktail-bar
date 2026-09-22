@@ -1,4 +1,5 @@
-import { Component, OnInit } from '@angular/core';
+import { Component, computed, inject, signal } from '@angular/core';
+import { toSignal } from '@angular/core/rxjs-interop';
 import { CommonModule } from '@angular/common';
 import { ActivatedRoute, Router } from '@angular/router';
 import { CocktailService } from '../../core/services/cocktail.service';
@@ -9,36 +10,26 @@ import { Cocktail } from '../../core/models/cocktail.model';
   standalone: true,
   imports: [CommonModule],
   templateUrl: './cocktail-detail.component.html',
-  styleUrls: ['./cocktail-detail.component.scss']
+  styleUrls: ['./cocktail-detail.component.scss'],
 })
-export class CocktailDetailComponent implements OnInit {
-  cocktail: Cocktail | null = null;
-  loading = true;
+export class CocktailDetailComponent {
+  private readonly route = inject(ActivatedRoute);
+  private readonly router = inject(Router);
+  private readonly cocktailService = inject(CocktailService);
 
-  constructor(
-    private route: ActivatedRoute,
-    private router: Router,
-    private cocktailService: CocktailService
-  ) {}
+  readonly cocktail = signal<Cocktail | null>(null);
+  readonly loading = signal(true);
+  private readonly favorites = toSignal(this.cocktailService.favorites$, { initialValue: [] });
+  readonly isFavorite = computed(() => {
+    const current = this.cocktail();
+    return current ? this.favorites().includes(current.idDrink) : false;
+  });
 
-  ngOnInit(): void {
+  constructor() {
     const id = this.route.snapshot.paramMap.get('id');
-    if (id) {
-      this.cocktailService.searchLocal(id, 'id').subscribe({
-        next: (data) => {
-          if (data && data.length > 0) {
-            this.cocktail = data[0];
-          }
-          this.loading = false;
-        },
-        error: (err) => {
-          console.error('Error al obtener el detalle:', err);
-          this.loading = false;
-        }
-      });
-    } else {
-      this.loading = false;
-    }
+    const found = id ? this.cocktailService.searchLocal(id, 'id') : [];
+    this.cocktail.set(found[0] ?? null);
+    this.loading.set(false);
   }
 
   goBack(): void {
@@ -46,12 +37,9 @@ export class CocktailDetailComponent implements OnInit {
   }
 
   toggleFavorite(): void {
-    if (this.cocktail) {
-      this.cocktailService.toggleFavorite(this.cocktail.idDrink);
+    const current = this.cocktail();
+    if (current) {
+      this.cocktailService.toggleFavorite(current.idDrink);
     }
-  }
-
-  isFavorite(): boolean {
-    return this.cocktail ? this.cocktailService.isFavorite(this.cocktail.idDrink) : false;
   }
 }
