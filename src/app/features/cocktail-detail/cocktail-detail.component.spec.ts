@@ -1,7 +1,7 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { RouterTestingModule } from '@angular/router/testing';
 import { ActivatedRoute, Router } from '@angular/router';
-import { of, throwError } from 'rxjs';
+import { BehaviorSubject } from 'rxjs';
 import { CocktailDetailComponent } from './cocktail-detail.component';
 import { CocktailService } from '../../core/services/cocktail.service';
 
@@ -13,25 +13,27 @@ describe('CocktailDetailComponent', () => {
 
   beforeEach(async () => {
     mockCocktailService = {
-      searchLocal: vi.fn().mockReturnValue(of([{
-        idDrink: '11000',
-        strDrink: 'Mojito',
-        strInstructions: 'Muddle mint.',
-        ingredients: [{ name: 'Mint', measure: '1 oz' }]
-      }])),
+      searchLocal: vi.fn().mockReturnValue([
+        {
+          idDrink: '11000',
+          strDrink: 'Mojito',
+          strInstructions: 'Muddle mint.',
+          ingredients: [{ name: 'Mint', measure: '1 oz' }],
+        },
+      ]),
+      favorites$: new BehaviorSubject<string[]>(['11000']).asObservable(),
       toggleFavorite: vi.fn(),
-      isFavorite: vi.fn().mockReturnValue(true)
     };
 
     await TestBed.configureTestingModule({
       imports: [CocktailDetailComponent, RouterTestingModule],
       providers: [
         { provide: CocktailService, useValue: mockCocktailService },
-        { 
-          provide: ActivatedRoute, 
-          useValue: { snapshot: { paramMap: { get: () => '11000' } } } 
-        }
-      ]
+        {
+          provide: ActivatedRoute,
+          useValue: { snapshot: { paramMap: { get: () => '11000' } } },
+        },
+      ],
     }).compileComponents();
 
     router = TestBed.inject(Router);
@@ -41,9 +43,9 @@ describe('CocktailDetailComponent', () => {
   });
 
   it('debería cargar los detalles del cóctel al iniciar', () => {
-    expect(component.cocktail).toBeTruthy();
-    expect(component.cocktail?.strDrink).toBe('Mojito');
-    expect(component.loading).toBe(false);
+    expect(component.cocktail()).toBeTruthy();
+    expect(component.cocktail()?.strDrink).toBe('Mojito');
+    expect(component.loading()).toBe(false);
     expect(mockCocktailService.searchLocal).toHaveBeenCalledWith('11000', 'id');
   });
 
@@ -52,10 +54,8 @@ describe('CocktailDetailComponent', () => {
     expect(mockCocktailService.toggleFavorite).toHaveBeenCalledWith('11000');
   });
 
-  it('debería verificar si es favorito', () => {
-    const isFav = component.isFavorite();
-    expect(isFav).toBe(true);
-    expect(mockCocktailService.isFavorite).toHaveBeenCalledWith('11000');
+  it('debería verificar si es favorito según el estado de favoritos', () => {
+    expect(component.isFavorite()).toBe(true);
   });
 
   it('debería navegar hacia atrás con goBack', () => {
