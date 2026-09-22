@@ -1,0 +1,17 @@
+.detail-img {
+  width: 100%;
+  max-height: 400px;
+  object-fit: cover;
+  transition: transform 0.3s ease-in-out;
+
+  @media (min-width: 768px) {
+    max-height: 500px;
+  }
+}
+
+.instructions-box {
+  line-height: 1.6;
+  white-space: pre-line;
+  word-break: break-word;
+}
+
