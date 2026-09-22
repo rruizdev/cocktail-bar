@@ -1,23 +1,32 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { RouterTestingModule } from '@angular/router/testing';
 import { ActivatedRoute, Router } from '@angular/router';
-import { BehaviorSubject } from 'rxjs';
+import { BehaviorSubject, Observable } from 'rxjs';
 import { CocktailDetailComponent } from './cocktail-detail.component';
-import { CocktailService } from '../../core/services/cocktail.service';
+import { CocktailService } from '@core/services/cocktail.service';
+import { Cocktail } from '@core/models/cocktail.model';
+import { SearchType } from '@core/models/search-type.model';
+
+interface MockCocktailService {
+  searchLocal: ReturnType<typeof vi.fn<(term: string, type: SearchType) => Cocktail[]>>;
+  favorites$: Observable<string[]>;
+  toggleFavorite: ReturnType<typeof vi.fn>;
+}
 
 describe('CocktailDetailComponent', () => {
   let component: CocktailDetailComponent;
   let fixture: ComponentFixture<CocktailDetailComponent>;
-  let mockCocktailService: any;
+  let mockCocktailService: MockCocktailService;
   let router: Router;
 
   beforeEach(async () => {
     mockCocktailService = {
-      searchLocal: vi.fn().mockReturnValue([
+      searchLocal: vi.fn<(term: string, type: SearchType) => Cocktail[]>().mockReturnValue([
         {
           idDrink: '11000',
           strDrink: 'Mojito',
           strInstructions: 'Muddle mint.',
+          strDrinkThumb: '',
           ingredients: [{ name: 'Mint', measure: '1 oz' }],
         },
       ]),

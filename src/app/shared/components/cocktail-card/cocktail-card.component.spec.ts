@@ -1,6 +1,6 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { CocktailCardComponent } from './cocktail-card.component';
-import { Cocktail } from '../../../core/models/cocktail.model';
+import { Cocktail } from '@core/models/cocktail.model';
 
 describe('CocktailCardComponent', () => {
   let component: CocktailCardComponent;
@@ -16,13 +16,13 @@ describe('CocktailCardComponent', () => {
     strDrinkThumb: 'https://www.thecocktaildb.com/images/media/drink/5noda61589575158.jpg',
     ingredients: [
       { name: 'Tequila', measure: '1 1/2 oz' },
-      { name: 'Triple sec', measure: '1/2 oz' }
-    ]
+      { name: 'Triple sec', measure: '1/2 oz' },
+    ],
   };
 
   beforeEach(async () => {
     await TestBed.configureTestingModule({
-      imports: [CocktailCardComponent]
+      imports: [CocktailCardComponent],
     }).compileComponents();
 
     fixture = TestBed.createComponent(CocktailCardComponent);
@@ -38,7 +38,9 @@ describe('CocktailCardComponent', () => {
   it('debería mostrar los datos del cóctel', () => {
     const compiled = fixture.nativeElement as HTMLElement;
     expect(compiled.querySelector('.card-title')?.textContent).toContain('Margarita');
-    expect(compiled.querySelector('.card-text')?.textContent).toContain('Categoría: Ordinary Drink');
+    expect(compiled.querySelector('.card-text')?.textContent).toContain(
+      'Categoría: Ordinary Drink',
+    );
     const img = compiled.querySelector('img') as HTMLImageElement;
     expect(img.src).toContain('5noda61589575158.jpg');
   });
@@ -94,4 +96,3 @@ describe('CocktailCardComponent', () => {
     expect(btnText).toContain('♥ Favorito');
   });
 });
-

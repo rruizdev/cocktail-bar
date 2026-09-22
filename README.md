@@ -18,7 +18,8 @@ Desarrollado en  **Angular** para:
 5. [Instalación y Configuración](#-instalación-y-configuración)
 6. [Ejecución de la Aplicación](#-ejecución-de-la-aplicación)
 7. [Pruebas Unitarias (Testing)](#-pruebas-unitarias-testing)
-8. [Compilación para Producción](#-compilación-para-producción)
+8. [Calidad de Código (Lint y Formato)](#-calidad-de-código-lint-y-formato)
+9. [Compilación para Producción](#-compilación-para-producción)
 
 ---
 
@@ -45,8 +46,8 @@ cocktail-bar/
 │   ├── app/
 │   │   ├── core/               # Núcleo de la app (servicios singleton, modelos globales)
 │   │   │   ├── models/         # Modelos e interfaces TypeScript
-│   │   │   │   ├── cocktail.model.ts       # Modelo de cóctel y respuesta API
-│   │   │   │   ├── Ingredient.model.ts     # Modelo para ingredientes normalizados
+│   │   │   │   ├── cocktail.model.ts       # Modelo de cóctel, tipo API y respuesta
+│   │   │   │   ├── ingredient.model.ts     # Modelo para ingredientes normalizados
 │   │   │   │   ├── search-type.model.ts    # Tipos de búsqueda ('name' | 'ingredient' | 'id')
 │   │   │   │   ├── search.model.ts         # Estructura del estado de búsqueda
 │   │   │   │   └── stored-catalog.model.ts # Estructura de caché con timestamp TTL
@@ -73,13 +74,14 @@ cocktail-bar/
 │   │   │
 │   │   ├── app.config.ts       # Configuración global (proveedores, router, fetch HTTP)
 │   │   ├── app.routes.ts       # Definición de rutas principales
-│   │   ├── app.ts / app.html   # Componente raíz de la aplicación
-│   │   └── app.spec.ts         # Pruebas del componente raíz
+│   │   ├── app.component.ts / app.component.html / app.component.scss  # Componente raíz
+│   │   └── app.component.spec.ts         # Pruebas del componente raíz
 │   │
 │   ├── environments/           # Variables de entorno (URLs de la API TheCocktailDB)
 │   ├── styles.scss             # Estilos globales y variables de tema
 │   └── main.ts                 # Punto de entrada de la aplicación
 ├── angular.json                # Configuración del CLI de Angular y builders
+├── eslint.config.mjs           # Configuración de ESLint (flat config + angular-eslint)
 ├── package.json                # Dependencias y scripts del proyecto
 └── tsconfig.json               # Configuración de compilación de TypeScript
 ```
@@ -110,8 +112,8 @@ cocktail-bar/
 - **Motivo**: Si un usuario tiene la aplicación abierta en varias pestañas simultáneamente y marca un cóctel como favorito en una de ellas, el cambio se propaga de forma inmediata. La ejecución de las emisiones se envuelve en `NgZone.run()` para garantizar que la vista se actualice al instante.
 
 ### 6. Modelo de Datos de la API
-- **Decisión**: La API TheCocktailDB entrega los ingredientes y medidas de forma aplanada en 15 propiedades individuales (`strIngredient1` ... `strIngredient15`, `strMeasure1` ... `strMeasure15`). El método `parseCocktails` normaliza esta respuesta a un arreglo estructurado `Ingredient[]` (`{ name, measure }`).
-- **Motivo**: Facilita la manipulación en TypeScript, mejora la tipificación estricta y permite iterar de manera limpia mediante `@for` o `*ngFor` en la vista de detalle.
+- **Decisión**: La API TheCocktailDB entrega los ingredientes y medidas de forma aplanada en 15 propiedades individuales (`strIngredient1` ... `strIngredient15`, `strMeasure1` ... `strMeasure15`). La respuesta se tipa con la interfaz `CocktailApiDrink` y el método `parseCocktails` normaliza esa forma aplanada a un arreglo estructurado `Ingredient[]` (`{ name, measure }`).
+- **Motivo**: Facilita la manipulación en TypeScript, mejora la tipificación estricta (sin `any`) y permite iterar de manera limpia mediante `@for` en la vista de detalle.
 
 ### 7. Preservación del Contexto de Navegación
 - **Decisión**: Servicio singleton `StateService` que retiene el término de búsqueda actual, el tipo de filtro seleccionado y si se estaba visualizando solo favoritos.
@@ -125,14 +127,23 @@ cocktail-bar/
 - **Decisión**: Combinación del framework de utilidades y sistema de grilla de Bootstrap 5 con hojas de estilo personalizadas en SCSS.
 - **Motivo**: Provee un diseño adaptable (responsive) para móviles, tablets y escritorio, con estados de accesibilidad claros (`:focus-visible`) y consistencia visual rápida.
 
+### 10. Linting y Formato
+- **Decisión**: Se usa **ESLint** con `angular-eslint` (flat config en `eslint.config.mjs`) más **Prettier** para el formato.
+- **Scripts**: `npm run lint` (ESLint), `npm run format` (Prettier `--write`) y `npm run format:check` (verificación en CI).
+- **Motivo**: Detecta errores de estilo, accesibilidad en templates (`@angular-eslint/template`) y malas prácticas de Angular de forma automática en el ciclo de desarrollo.
+
+### 11. Control Flow Nativo y Aliases de Ruta
+- **Decisión**: Los templates usan el control flow nativo de Angular (`@if` / `@else if` / `@for`) en lugar de directivas estructurales (`*ngIf` / `*ngFor`). Además, las rutas de importación se simplifican con aliases de TypeScript: `@core/*` → `src/app/core/*` y `@shared/*` → `src/app/shared/*`.
+- **Motivo**: El control flow nativo es más legible y eficiente (single-pass), y los aliases evitan imports relativos largos (`../../core/...`) que se vuelven frágiles a medida que crece el árbol de carpetas.
+
 ---
 
 ## 💻 Requisitos Previos
 
 Es necesario tener instalado:
 
-- **Node.js**: Versión `v20.x` o superior (compatible con Angular 19/20+).
-- **npm**: Versión `v10.x` o superior.
+- **Node.js**: Versión `v20.19.x` o `v22.12.x` o superior (compatible con Angular 22).
+- **npm**: Versión `v12.x` o superior (el proyecto fija `packageManager: npm@12.0.2`).
 
 Para verificar las versiones:
 ```bash
@@ -187,6 +198,23 @@ Para generar reporte de cobertura de código (*code coverage*):
 
 ```bash
 npx ng test --coverage
+```
+
+---
+
+## 🧹 Calidad de Código (Lint y Formato)
+
+Para verificar el estilo y las buenas prácticas de Angular/TypeScript:
+
+```bash
+npm run lint
+```
+
+Para formatear el código con Prettier (o solo verificar en CI):
+
+```bash
+npm run format        # reescribe los archivos
+npm run format:check  # verifica sin modificar
 ```
 
 ---

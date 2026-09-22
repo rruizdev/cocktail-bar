@@ -1,9 +1,9 @@
-import { Injectable, NgZone } from '@angular/core';
+import { Injectable, NgZone, inject } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { BehaviorSubject } from 'rxjs';
-import { Cocktail, CocktailApiResponse } from '../models/cocktail.model';
+import { Cocktail, CocktailApiDrink, CocktailApiResponse } from '../models/cocktail.model';
 import { StoredCatalog } from '../models/stored-catalog.model';
-import { Ingredient } from '../models/Ingredient.model';
+import { Ingredient } from '../models/ingredient.model';
 import { SearchType } from '../models/search-type.model';
 import { environment } from '../../../environments/environment';
 
@@ -13,20 +13,21 @@ const CATALOG_TTL_MS = 24 * 60 * 60 * 1000;
   providedIn: 'root',
 })
 export class CocktailService {
+  private readonly http = inject(HttpClient);
+  private readonly ngZone = inject(NgZone);
+
   private storageKey = 'coto_cocktails_catalog';
   private favoritesKey = 'coto_cocktail_favorites';
   private broadcastChannel = new BroadcastChannel('coto_cocktails_sync');
 
-  private catalogSubject = new BehaviorSubject<Cocktail[]>(this.loadCatalogFromStorage());
-  public catalog$ = this.catalogSubject.asObservable();
+  private readonly catalogSubject = new BehaviorSubject<Cocktail[]>(this.loadCatalogFromStorage());
+  public readonly catalog$ = this.catalogSubject.asObservable();
+  private readonly favoritesSubject = new BehaviorSubject<string[]>(
+    this.loadFavoritesFromStorage(),
+  );
+  public readonly favorites$ = this.favoritesSubject.asObservable();
 
-  private favoritesSubject = new BehaviorSubject<string[]>(this.loadFavoritesFromStorage());
-  public favorites$ = this.favoritesSubject.asObservable();
-
-  constructor(
-    private http: HttpClient,
-    private ngZone: NgZone,
-  ) {
+  constructor() {
     this.broadcastChannel.onmessage = (event) => {
       this.ngZone.run(() => {
         if (event.data?.type === 'FAVS_UPDATED') {
@@ -121,7 +122,7 @@ export class CocktailService {
     localStorage.setItem(this.storageKey, JSON.stringify({ storedAt: Date.now(), cocktails }));
   }
 
-  private parseCocktails(drinks: any[] | null): Cocktail[] {
+  private parseCocktails(drinks: CocktailApiDrink[] | null): Cocktail[] {
     if (!drinks) return [];
 
     return drinks.map((drink) => {
@@ -129,10 +130,11 @@ export class CocktailService {
 
       for (let i = 1; i <= 15; i++) {
         const name = drink[`strIngredient${i}`];
+        const measure = drink[`strMeasure${i}`];
         if (name && name.trim() !== '') {
           ingredients.push({
             name: name.trim(),
-            measure: drink[`strMeasure${i}`] ? drink[`strMeasure${i}`].trim() : '',
+            measure: measure ? measure.trim() : '',
           });
         }
       }
@@ -140,11 +142,11 @@ export class CocktailService {
       return {
         idDrink: drink.idDrink,
         strDrink: drink.strDrink,
-        strCategory: drink.strCategory,
-        strAlcoholic: drink.strAlcoholic,
-        strGlass: drink.strGlass,
+        strCategory: drink.strCategory ?? undefined,
+        strAlcoholic: drink.strAlcoholic ?? undefined,
+        strGlass: drink.strGlass ?? undefined,
         strInstructions: drink.strInstructions || 'Sin instrucciones detalladas.',
-        strDrinkThumb: drink.strDrinkThumb,
+        strDrinkThumb: drink.strDrinkThumb ?? '',
         ingredients,
       };
     });

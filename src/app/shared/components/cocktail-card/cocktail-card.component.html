@@ -1,64 +1,83 @@
-<div 
-  class="card h-100 shadow-sm position-relative cocktail-card" 
+<div
+  class="card h-100 shadow-sm position-relative cocktail-card"
   tabindex="0"
   role="article"
   [attr.aria-label]="'Cóctel ' + cocktail.strDrink"
   (click)="onCardClick()"
   (keydown.enter)="onCardClick()"
-  (keydown.space)="$event.preventDefault(); onCardClick()">
-  
+  (keydown.space)="$event.preventDefault(); onCardClick()"
+>
   <!-- Overlay con Spinner al navegar -->
-  <div 
-    *ngIf="isNavigating" 
-    class="card-loading-overlay d-flex flex-column align-items-center justify-content-center">
-    <div class="spinner-border text-light mb-2" role="status">
-      <span class="visually-hidden">Cargando detalle...</span>
+  @if (isNavigating) {
+    <div class="card-loading-overlay d-flex flex-column align-items-center justify-content-center">
+      <div class="spinner-border text-light mb-2" role="status">
+        <span class="visually-hidden">Cargando detalle...</span>
+      </div>
+      <span class="badge bg-dark text-light">Cargando...</span>
     </div>
-    <span class="badge bg-dark text-light">Cargando...</span>
-  </div>
+  }
 
   <!-- Botón de Menú Contextual (3 puntos) -->
-  <button 
+  <button
     type="button"
-    class="btn btn-sm btn-light position-absolute top-0 end-0 m-2 rounded-circle context-menu-btn" 
+    class="btn btn-sm btn-light position-absolute top-0 end-0 m-2 rounded-circle context-menu-btn"
     [attr.aria-label]="'Opciones para ' + cocktail.strDrink"
     aria-haspopup="true"
     [attr.aria-expanded]="isMenuOpen"
     (click)="onToggleMenu($event)"
     (keydown.enter)="onToggleMenu($event)"
-    (keydown.space)="$event.stopPropagation(); onToggleMenu($event)">
+    (keydown.space)="$event.stopPropagation(); onToggleMenu($event)"
+  >
     ⋮
   </button>
 
   <!-- Menú contextual desplegable -->
-  <div 
-    *ngIf="isMenuOpen" 
-    class="dropdown-menu show position-absolute top-0 end-0 mt-5 me-2 shadow context-menu-dropdown"
-    role="menu"
-    [attr.aria-label]="'Menú de opciones de ' + cocktail.strDrink">
-    <button type="button" role="menuitem" class="dropdown-item" (click)="onCardClick()">Ver detalles</button>
-    <button type="button" role="menuitem" class="dropdown-item" (click)="onToggleFavorite($event)">
-      {{ isFavorite ? 'Remover de favoritos' : 'Añadir a favoritos' }}
-    </button>
-  </div>
+  @if (isMenuOpen) {
+    <div
+      class="dropdown-menu show position-absolute top-0 end-0 mt-5 me-2 shadow context-menu-dropdown"
+      role="menu"
+      [attr.aria-label]="'Menú de opciones de ' + cocktail.strDrink"
+    >
+      <button type="button" role="menuitem" class="dropdown-item" (click)="onCardClick()">
+        Ver detalles
+      </button>
+      <button
+        type="button"
+        role="menuitem"
+        class="dropdown-item"
+        (click)="onToggleFavorite($event)"
+      >
+        {{ isFavorite ? 'Remover de favoritos' : 'Añadir a favoritos' }}
+      </button>
+    </div>
+  }
 
-  <img [src]="cocktail.strDrinkThumb" class="card-img-top cocktail-card-img" [alt]="'Fotografía de ' + cocktail.strDrink" loading="lazy">
-  
+  <img
+    [src]="cocktail.strDrinkThumb"
+    class="card-img-top cocktail-card-img"
+    [alt]="'Fotografía de ' + cocktail.strDrink"
+    loading="lazy"
+  />
+
   <div class="card-body">
     <h2 class="card-title h5 text-truncate">{{ cocktail.strDrink }}</h2>
-    <p class="card-text text-muted small mb-1" *ngIf="cocktail.strCategory">Categoría: {{ cocktail.strCategory }}</p>
-    <button 
+    @if (cocktail.strCategory) {
+      <p class="card-text text-muted small mb-1">Categoría: {{ cocktail.strCategory }}</p>
+    }
+    <button
       type="button"
-      class="btn btn-sm mt-2" 
-      [class.btn-danger]="isFavorite" 
+      class="btn btn-sm mt-2"
+      [class.btn-danger]="isFavorite"
       [class.btn-outline-danger]="!isFavorite"
       [attr.aria-pressed]="isFavorite"
-      [attr.aria-label]="(isFavorite ? 'Remover de favoritos ' : 'Agregar a favoritos ') + cocktail.strDrink"
+      [attr.aria-label]="
+        (isFavorite ? 'Remover de favoritos ' : 'Agregar a favoritos ') + cocktail.strDrink
+      "
       (click)="onToggleFavorite($event)"
       (keydown.enter)="onToggleFavorite($event)"
-      (keydown.space)="$event.stopPropagation(); onToggleFavorite($event)">
+      (keydown.space)="$event.stopPropagation(); onToggleFavorite($event)"
+    >
       {{ isFavorite ? '♥ Favorito' : '♡ Agregar a favoritos' }}
     </button>
   </div>
 </div>
-

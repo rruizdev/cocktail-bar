@@ -1,6 +1,8 @@
 .cocktail-card {
   cursor: pointer;
-  transition: transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out;
+  transition:
+    transform 0.2s ease-in-out,
+    box-shadow 0.2s ease-in-out;
   overflow: hidden;
 
   &:hover {
@@ -55,4 +57,3 @@
   border-radius: inherit;
   transition: opacity 0.2s ease-in-out;
 }
-

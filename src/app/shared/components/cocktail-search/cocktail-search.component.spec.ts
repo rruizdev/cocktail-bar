@@ -8,7 +8,7 @@ describe('CocktailSearchComponent', () => {
 
   beforeEach(async () => {
     await TestBed.configureTestingModule({
-      imports: [CocktailSearchComponent, FormsModule]
+      imports: [CocktailSearchComponent, FormsModule],
     }).compileComponents();
 
     fixture = TestBed.createComponent(CocktailSearchComponent);
@@ -48,7 +48,9 @@ describe('CocktailSearchComponent', () => {
     component.searchTerm = 'Mojito';
     fixture.detectChanges();
 
-    const clearButton = fixture.nativeElement.querySelector('button[aria-label="Limpiar búsqueda"]') as HTMLButtonElement;
+    const clearButton = fixture.nativeElement.querySelector(
+      'button[aria-label="Limpiar búsqueda"]',
+    ) as HTMLButtonElement;
     expect(clearButton).toBeTruthy();
     clearButton.click();
 
@@ -57,7 +59,9 @@ describe('CocktailSearchComponent', () => {
 
   it('debería emitir toggleFavorites al pulsar el botón de favoritos', () => {
     vi.spyOn(component.toggleFavorites, 'emit');
-    const favButton = fixture.nativeElement.querySelector('button[aria-label="Filtrar solo cócteles favoritos"]') as HTMLButtonElement;
+    const favButton = fixture.nativeElement.querySelector(
+      'button[aria-label="Filtrar solo cócteles favoritos"]',
+    ) as HTMLButtonElement;
     favButton.click();
 
     expect(component.toggleFavorites.emit).toHaveBeenCalled();
@@ -67,8 +71,9 @@ describe('CocktailSearchComponent', () => {
     component.showOnlyFavorites = true;
     fixture.detectChanges();
 
-    const favButton = fixture.nativeElement.querySelector('button[aria-label="Filtrar solo cócteles favoritos"]') as HTMLButtonElement;
+    const favButton = fixture.nativeElement.querySelector(
+      'button[aria-label="Filtrar solo cócteles favoritos"]',
+    ) as HTMLButtonElement;
     expect(favButton.classList.contains('btn-warning')).toBe(true);
   });
 });
-

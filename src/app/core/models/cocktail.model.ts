@@ -1,4 +1,4 @@
-import { Ingredient } from "./Ingredient.model";
+import { Ingredient } from './ingredient.model';
 
 export interface Cocktail {
   idDrink: string;
@@ -11,8 +11,18 @@ export interface Cocktail {
   ingredients: Ingredient[];
 }
 
-export interface CocktailApiResponse {
-  drinks: any[] | null;
+export interface CocktailApiDrink {
+  idDrink: string;
+  strDrink: string;
+  strCategory?: string | null;
+  strAlcoholic?: string | null;
+  strGlass?: string | null;
+  strInstructions?: string | null;
+  strDrinkThumb?: string | null;
+  [key: `strIngredient${number}`]: string | null | undefined;
+  [key: `strMeasure${number}`]: string | null | undefined;
 }
 
-
+export interface CocktailApiResponse {
+  drinks: CocktailApiDrink[] | null;
+}

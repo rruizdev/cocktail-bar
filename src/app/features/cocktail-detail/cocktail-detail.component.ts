@@ -1,14 +1,13 @@
 import { Component, computed, inject, signal } from '@angular/core';
 import { toSignal } from '@angular/core/rxjs-interop';
-import { CommonModule } from '@angular/common';
 import { ActivatedRoute, Router } from '@angular/router';
-import { CocktailService } from '../../core/services/cocktail.service';
-import { Cocktail } from '../../core/models/cocktail.model';
+import { CocktailService } from '@core/services/cocktail.service';
+import { Cocktail } from '@core/models/cocktail.model';
 
 @Component({
   selector: 'app-cocktail-detail',
   standalone: true,
-  imports: [CommonModule],
+  imports: [],
   templateUrl: './cocktail-detail.component.html',
   styleUrls: ['./cocktail-detail.component.scss'],
 })
