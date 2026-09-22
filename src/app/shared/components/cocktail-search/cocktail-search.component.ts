@@ -1,15 +1,14 @@
 import { Component, Input, Output, EventEmitter, ChangeDetectionStrategy } from '@angular/core';
-import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { SearchType } from "../../../core/models/search-type.model";
+import { SearchType } from '@core/models/search-type.model';
 
 @Component({
   selector: 'app-cocktail-search',
   standalone: true,
-  imports: [CommonModule, FormsModule],
+  imports: [FormsModule],
   templateUrl: './cocktail-search.component.html',
   styleUrls: ['./cocktail-search.component.scss'],
-  changeDetection: ChangeDetectionStrategy.OnPush
+  changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class CocktailSearchComponent {
   @Input() searchType: SearchType = 'name';
@@ -43,4 +42,3 @@ export class CocktailSearchComponent {
     return 'Buscar por ID (solo números)...';
   }
 }
-

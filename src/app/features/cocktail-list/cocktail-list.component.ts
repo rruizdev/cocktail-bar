@@ -7,22 +7,21 @@ import {
   signal,
   computed,
 } from '@angular/core';
-import { CommonModule } from '@angular/common';
 import { Router } from '@angular/router';
 import { Subject, fromEvent } from 'rxjs';
 import { debounceTime, distinctUntilChanged, throttleTime } from 'rxjs/operators';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
-import { CocktailService } from '../../core/services/cocktail.service';
-import { StateService } from '../../core/services/state.service';
-import { Cocktail } from '../../core/models/cocktail.model';
-import { SearchType } from '../../core/models/search-type.model';
-import { CocktailCardComponent } from '../../shared/components/cocktail-card/cocktail-card.component';
-import { CocktailSearchComponent } from '../../shared/components/cocktail-search/cocktail-search.component';
+import { CocktailService } from '@core/services/cocktail.service';
+import { StateService } from '@core/services/state.service';
+import { Cocktail } from '@core/models/cocktail.model';
+import { SearchType } from '@core/models/search-type.model';
+import { CocktailCardComponent } from '@shared/components/cocktail-card/cocktail-card.component';
+import { CocktailSearchComponent } from '@shared/components/cocktail-search/cocktail-search.component';
 
 @Component({
   selector: 'app-cocktail-list',
   standalone: true,
-  imports: [CommonModule, CocktailCardComponent, CocktailSearchComponent],
+  imports: [CocktailCardComponent, CocktailSearchComponent],
   templateUrl: './cocktail-list.component.html',
   styleUrls: ['./cocktail-list.component.scss'],
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -35,7 +34,6 @@ export class CocktailListComponent implements OnInit {
   readonly showOnlyFavorites = signal(false);
   readonly currentPage = signal(1);
   readonly loading = signal(false);
-  readonly loadingMore = signal(false);
   readonly errorMessage = signal('');
   readonly allCocktails = signal<Cocktail[]>([]);
   readonly favoritesSet = signal<Set<string>>(new Set());
@@ -110,14 +108,9 @@ export class CocktailListComponent implements OnInit {
   }
 
   loadMore(): void {
-    if (this.loadingMore() || this.displayedCocktails().length >= this.filteredCocktails().length)
-      return;
+    if (this.displayedCocktails().length >= this.filteredCocktails().length) return;
 
-    this.loadingMore.set(true);
-    setTimeout(() => {
-      this.currentPage.update((page) => page + 1);
-      this.loadingMore.set(false);
-    }, 150);
+    this.currentPage.update((page) => page + 1);
   }
 
   toggleFavoritesFilter(): void {
@@ -150,10 +143,6 @@ export class CocktailListComponent implements OnInit {
     this.navigatingId.set(id);
     this.stateService.saveState(this.searchTerm(), this.searchType(), this.showOnlyFavorites());
     this.router.navigate(['/detail', id]);
-  }
-
-  trackByDrinkId(_index: number, cocktail: Cocktail): string {
-    return cocktail.idDrink;
   }
 
   onSearchTypeChange(type: SearchType): void {

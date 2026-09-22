@@ -26,23 +26,24 @@
       <div class="col-md-7">
         <h1>{{ cocktail.strDrink }}</h1>
         <p class="text-muted">
-          <span class="badge bg-secondary me-2" *ngIf="cocktail.strCategory">{{
-            cocktail.strCategory
-          }}</span>
-          <span class="badge bg-info text-dark" *ngIf="cocktail.strAlcoholic">{{
-            cocktail.strAlcoholic
-          }}</span>
+          @if (cocktail.strCategory) {
+            <span class="badge bg-secondary me-2">{{ cocktail.strCategory }}</span>
+          }
+          @if (cocktail.strAlcoholic) {
+            <span class="badge bg-info text-dark">{{ cocktail.strAlcoholic }}</span>
+          }
         </p>
 
         <h2 class="h4 mt-4">Ingredientes</h2>
         <ul class="list-group mb-4">
-          <li
-            class="list-group-item d-flex justify-content-between align-items-center"
-            *ngFor="let ing of cocktail.ingredients"
-          >
-            <span>{{ ing.name }}</span>
-            <span class="badge bg-primary rounded-pill" *ngIf="ing.measure">{{ ing.measure }}</span>
-          </li>
+          @for (ing of cocktail.ingredients; track ing.name) {
+            <li class="list-group-item d-flex justify-content-between align-items-center">
+              <span>{{ ing.name }}</span>
+              @if (ing.measure) {
+                <span class="badge bg-primary rounded-pill">{{ ing.measure }}</span>
+              }
+            </li>
+          }
         </ul>
 
         <h2 class="h4">Instrucciones de preparación</h2>

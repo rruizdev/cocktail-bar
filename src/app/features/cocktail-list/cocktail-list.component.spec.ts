@@ -1,34 +1,53 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { RouterTestingModule } from '@angular/router/testing';
 import { Router } from '@angular/router';
-import { BehaviorSubject } from 'rxjs';
+import { BehaviorSubject, Observable } from 'rxjs';
 import { CocktailListComponent } from './cocktail-list.component';
-import { CocktailService } from '../../core/services/cocktail.service';
-import { StateService } from '../../core/services/state.service';
+import { CocktailService } from '@core/services/cocktail.service';
+import { StateService } from '@core/services/state.service';
+import { Cocktail } from '@core/models/cocktail.model';
+import { SearchType } from '@core/models/search-type.model';
+import { SearchState } from '@core/models/search.model';
+
+interface MockCocktailService {
+  catalog$: Observable<Cocktail[]>;
+  favorites$: Observable<string[]>;
+  searchLocal: ReturnType<typeof vi.fn<(term: string, type: SearchType) => Cocktail[]>>;
+  toggleFavorite: ReturnType<typeof vi.fn>;
+}
+
+interface MockStateService {
+  getState: ReturnType<typeof vi.fn<() => SearchState>>;
+  saveState: ReturnType<typeof vi.fn>;
+}
 
 describe('CocktailListComponent', () => {
   let component: CocktailListComponent;
   let fixture: ComponentFixture<CocktailListComponent>;
-  let mockCocktailService: any;
-  let mockStateService: any;
+  let mockCocktailService: MockCocktailService;
+  let mockStateService: MockStateService;
   let router: Router;
 
   beforeEach(async () => {
-    const catalogSub = new BehaviorSubject<any[]>([]);
+    const catalogSub = new BehaviorSubject<Cocktail[]>([]);
     const favoritesSub = new BehaviorSubject<string[]>([]);
 
     mockCocktailService = {
       catalog$: catalogSub.asObservable(),
       favorites$: favoritesSub.asObservable(),
-      searchLocal: vi.fn().mockReturnValue([
-        { idDrink: '1', strDrink: 'A' },
-        { idDrink: '2', strDrink: 'B' },
+      searchLocal: vi.fn<(term: string, type: SearchType) => Cocktail[]>().mockReturnValue([
+        { idDrink: '1', strDrink: 'A', strInstructions: '', strDrinkThumb: '', ingredients: [] },
+        { idDrink: '2', strDrink: 'B', strInstructions: '', strDrinkThumb: '', ingredients: [] },
       ]),
       toggleFavorite: vi.fn(),
     };
 
     mockStateService = {
-      getState: vi.fn().mockReturnValue({ term: '', type: 'name', onlyFavorites: false }),
+      getState: vi.fn<() => SearchState>().mockReturnValue({
+        term: '',
+        type: 'name',
+        onlyFavorites: false,
+      }),
       saveState: vi.fn(),
     };
 
@@ -76,12 +95,17 @@ describe('CocktailListComponent', () => {
   });
 
   it('debería incrementar la página al llamar a loadMore', () => {
-    vi.useFakeTimers();
-    component.allCocktails.set(new Array(20).fill({ idDrink: '1' }));
+    const template: Cocktail = {
+      idDrink: '1',
+      strDrink: 'A',
+      strInstructions: '',
+      strDrinkThumb: '',
+      ingredients: [],
+    };
+    component.allCocktails.set(new Array(20).fill(template));
     component.currentPage.set(1);
 
     component.loadMore();
-    vi.advanceTimersByTime(150);
 
     expect(component.currentPage()).toBe(2);
     expect(component.displayedCocktails().length).toBe(18);
@@ -89,7 +113,7 @@ describe('CocktailListComponent', () => {
 
   it('debería emitir el término sanitizado al Subject de búsqueda', () => {
     vi.useFakeTimers();
-    vi.spyOn(component as any, 'executeSearch');
+    const executeSpy = vi.spyOn(component as unknown as { executeSearch(): void }, 'executeSearch');
 
     component.searchType.set('name');
     component.onSearchInput('Margarita123');
@@ -98,7 +122,7 @@ describe('CocktailListComponent', () => {
 
     vi.advanceTimersByTime(250);
 
-    expect((component as any).executeSearch).toHaveBeenCalled();
+    expect(executeSpy).toHaveBeenCalled();
   });
 
   it('debería sanitizar búsqueda de ID sólo permitiendo números', () => {

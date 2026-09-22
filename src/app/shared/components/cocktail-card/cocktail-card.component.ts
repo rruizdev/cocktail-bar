@@ -1,14 +1,13 @@
 import { Component, Input, Output, EventEmitter, ChangeDetectionStrategy } from '@angular/core';
-import { CommonModule } from '@angular/common';
-import { Cocktail } from '../../../core/models/cocktail.model';
+import { Cocktail } from '@core/models/cocktail.model';
 
 @Component({
   selector: 'app-cocktail-card',
   standalone: true,
-  imports: [CommonModule],
+  imports: [],
   templateUrl: './cocktail-card.component.html',
   styleUrls: ['./cocktail-card.component.scss'],
-  changeDetection: ChangeDetectionStrategy.OnPush
+  changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class CocktailCardComponent {
   @Input({ required: true }) cocktail!: Cocktail;
@@ -34,4 +33,3 @@ export class CocktailCardComponent {
     this.toggleMenu.emit(this.cocktail.idDrink);
   }
 }
-

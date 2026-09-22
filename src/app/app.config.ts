@@ -7,9 +7,12 @@ export const appConfig: ApplicationConfig = {
   providers: [
     provideHttpClient(withFetch()),
     provideBrowserGlobalErrorListeners(),
-    provideRouter(routes, withInMemoryScrolling({
+    provideRouter(
+      routes,
+      withInMemoryScrolling({
         scrollPositionRestoration: 'enabled',
-        anchorScrolling: 'enabled'
-    }))
-  ]
+        anchorScrolling: 'enabled',
+      }),
+    ),
+  ],
 };

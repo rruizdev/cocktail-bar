@@ -16,48 +16,39 @@
   </header>
 
   <!-- Loader visual (Skeleton / Spinner) -->
-  <div *ngIf="loading()" class="text-center py-5" role="status" aria-live="polite">
-    <div class="spinner-border text-primary" role="status">
-      <span class="visually-hidden">Cargando cócteles...</span>
+  @if (loading()) {
+    <div class="text-center py-5" role="status" aria-live="polite">
+      <div class="spinner-border text-primary" role="status">
+        <span class="visually-hidden">Cargando cócteles...</span>
+      </div>
+      <p class="text-muted mt-2">Buscando cócteles...</p>
     </div>
-    <p class="text-muted mt-2">Buscando cócteles...</p>
-  </div>
+  }
 
   <!-- Mensaje de error o vacío -->
-  <div
-    *ngIf="!loading() && errorMessage()"
-    class="alert alert-info text-center"
-    role="alert"
-    aria-live="polite"
-  >
-    {{ errorMessage() }}
-  </div>
+  @if (!loading() && errorMessage()) {
+    <div class="alert alert-info text-center" role="alert" aria-live="polite">
+      {{ errorMessage() }}
+    </div>
+  }
 
   <!-- Grilla de Tarjetas -->
-  <div
-    *ngIf="!loading()"
-    class="row row-cols-1 row-cols-md-3 g-4"
-    role="region"
-    aria-label="Lista de cócteles"
-  >
-    <div class="col" *ngFor="let cocktail of displayedCocktails(); trackBy: trackByDrinkId">
-      <app-cocktail-card
-        [cocktail]="cocktail"
-        [isFavorite]="favoritesSet().has(cocktail.idDrink)"
-        [isNavigating]="navigatingId() === cocktail.idDrink"
-        [isMenuOpen]="activeMenuId() === cocktail.idDrink"
-        (viewDetail)="viewDetail($event)"
-        (toggleFavorite)="toggleFavorite($event)"
-        (toggleMenu)="toggleContextMenu($event)"
-      >
-      </app-cocktail-card>
+  @if (!loading()) {
+    <div class="row row-cols-1 row-cols-md-3 g-4" role="region" aria-label="Lista de cócteles">
+      @for (cocktail of displayedCocktails(); track cocktail.idDrink) {
+        <div class="col">
+          <app-cocktail-card
+            [cocktail]="cocktail"
+            [isFavorite]="favoritesSet().has(cocktail.idDrink)"
+            [isNavigating]="navigatingId() === cocktail.idDrink"
+            [isMenuOpen]="activeMenuId() === cocktail.idDrink"
+            (viewDetail)="viewDetail($event)"
+            (toggleFavorite)="toggleFavorite($event)"
+            (toggleMenu)="toggleContextMenu($event)"
+          >
+          </app-cocktail-card>
+        </div>
+      }
     </div>
-  </div>
-
-  <div *ngIf="loadingMore()" class="text-center py-3" role="status" aria-live="polite">
-    <div class="spinner-border spinner-border-sm text-primary" role="status">
-      <span class="visually-hidden">Cargando más tragos...</span>
-    </div>
-    <span class="ms-2 text-muted small">Cargando más tragos...</span>
-  </div>
+  }
 </div>

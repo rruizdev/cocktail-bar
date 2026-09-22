@@ -1,21 +1,22 @@
 import { TestBed } from '@angular/core/testing';
 import { HttpClientTestingModule, HttpTestingController } from '@angular/common/http/testing';
 import { CocktailService } from './cocktail.service';
+import { Cocktail } from '../models/cocktail.model';
 import { environment } from '../../../environments/environment';
 
 describe('CocktailService', () => {
   let service: CocktailService;
   let httpMock: HttpTestingController;
-  let setItemSpy: any;
+  let setItemSpy: ReturnType<typeof vi.spyOn>;
 
   beforeEach(() => {
-    (window as any).BroadcastChannel = class {
+    (window as unknown as { BroadcastChannel: unknown }).BroadcastChannel = class {
       postMessage = vi.fn();
       onmessage = null;
     };
 
     vi.spyOn(Storage.prototype, 'getItem').mockReturnValue(null);
-    setItemSpy = vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => {});
+    setItemSpy = vi.spyOn(Storage.prototype, 'setItem').mockReturnValue(undefined);
 
     TestBed.configureTestingModule({
       imports: [HttpClientTestingModule],
@@ -106,7 +107,11 @@ describe('CocktailService', () => {
     vi.spyOn(Storage.prototype, 'getItem').mockReturnValue(expiredData);
     const removeItemSpy = vi.spyOn(Storage.prototype, 'removeItem');
 
-    const loaded = (service as any).loadCatalogFromStorage();
+    const loaded = (
+      service as unknown as {
+        loadCatalogFromStorage(): Cocktail[];
+      }
+    ).loadCatalogFromStorage();
     expect(loaded).toEqual([]);
     expect(removeItemSpy).toHaveBeenCalledWith('coto_cocktails_catalog');
   });
@@ -120,7 +125,11 @@ describe('CocktailService', () => {
     ]);
     vi.spyOn(Storage.prototype, 'getItem').mockReturnValue(legacyData);
 
-    const loaded = (service as any).loadCatalogFromStorage();
+    const loaded = (
+      service as unknown as {
+        loadCatalogFromStorage(): Cocktail[];
+      }
+    ).loadCatalogFromStorage();
     expect(loaded.length).toBe(1);
     expect(loaded[0].strDrink).toBe('Legacy Drink');
   });
