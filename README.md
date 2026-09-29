@@ -45,8 +45,8 @@ Cada componente incluye sus archivos junto a él (`*.ts`, `*.html`, `*.scss` y `
 | Componentes | *Standalone* (`standalone: true`) | Elimina el boilerplate de `NgModule` y simplifica la gestión de dependencias por componente. |
 | Rendimiento | `ChangeDetectionStrategy.OnPush` + Signals | Solo se recalculan las vistas cuando los datos cambian; evita ciclos de detección innecesarios. |
 | Reactividad | `BehaviorSubject` + `debounceTime`/`throttleTime` | Evita renderizar por cada tecla (búsquedas) y mantiene fluido el scroll infinito. |
-| Caché de datos | `localStorage` con TTL de 24 h (`StoredCatalog`) | Reduce llamadas a la API pública y mejora la carga percibida. |
-| Sync entre pestañas | `BroadcastChannel` + evento `storage` | Favoritos y catálogo se actualizan al instante en todas las pestañas abiertas. |
+| Caché de datos | Catálogo en memoria con TTL de 24 h (`BehaviorSubject` + `catalogCachedAt`) | Reduce llamadas a la API pública sin exponer datos a `localStorage`/`sessionStorage`, que son legibles por cualquier script de la página. |
+| Sync entre pestañas | `BroadcastChannel` | Favoritos y catálogo se propagan en memoria entre las pestañas abiertas, sin escribir en disco ni en el navegador. |
 | Preservación de estado | `StateService` singleton | Al volver del detalle no se pierden el término, el filtro ni la vista de favoritos. |
 | Datos de la API | `CocktailApiDrink` + `parseCocktails` | Tipado estricto sin `any`; normaliza los 15 pares `strIngredientN`/`strMeasureN` de TheCocktailDB a un arreglo `Ingredient[]`. |
 | Estilos | Bootstrap 5 + SCSS por componente | Diseño responsive rápido con grilla y utilidades, más estilos propios. |

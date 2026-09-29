@@ -2,12 +2,12 @@ import { Injectable, NgZone, inject } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { BehaviorSubject } from 'rxjs';
 import { Cocktail, CocktailApiDrink, CocktailApiResponse } from '../models/cocktail.model';
-import { StoredCatalog } from '../models/stored-catalog.model';
 import { Ingredient } from '../models/ingredient.model';
 import { SearchType } from '../models/search-type.model';
 import { environment } from '../../../environments/environment';
 
 const CATALOG_TTL_MS = 24 * 60 * 60 * 1000;
+const SYNC_CHANNEL = 'coto_cocktails_sync';
 
 @Injectable({
   providedIn: 'root',
@@ -16,39 +16,27 @@ export class CocktailService {
   private readonly http = inject(HttpClient);
   private readonly ngZone = inject(NgZone);
 
-  private storageKey = 'coto_cocktails_catalog';
-  private favoritesKey = 'coto_cocktail_favorites';
-  private broadcastChannel = new BroadcastChannel('coto_cocktails_sync');
+  private readonly broadcastChannel = new BroadcastChannel(SYNC_CHANNEL);
 
-  private readonly catalogSubject = new BehaviorSubject<Cocktail[]>(this.loadCatalogFromStorage());
+  private readonly catalogSubject = new BehaviorSubject<Cocktail[]>([]);
   public readonly catalog$ = this.catalogSubject.asObservable();
-  private readonly favoritesSubject = new BehaviorSubject<string[]>(
-    this.loadFavoritesFromStorage(),
-  );
+  private catalogCachedAt = 0;
+
+  private readonly favoritesSubject = new BehaviorSubject<string[]>([]);
   public readonly favorites$ = this.favoritesSubject.asObservable();
 
   constructor() {
     this.broadcastChannel.onmessage = (event) => {
       this.ngZone.run(() => {
-        if (event.data?.type === 'FAVS_UPDATED') {
+        if (event.data?.type === 'FAVS_UPDATED' && Array.isArray(event.data.favorites)) {
           this.favoritesSubject.next([...event.data.favorites]);
-        } else if (event.data?.type === 'CATALOG_UPDATED') {
-          this.catalogSubject.next([...event.data.catalog]);
+        } else if (event.data?.type === 'CATALOG_UPDATED' && Array.isArray(event.data.catalog)) {
+          this.applyCatalog(event.data.catalog, Number(event.data.cachedAt) || Date.now());
         }
       });
     };
 
-    window.addEventListener('storage', (event) => {
-      if (event.key === this.favoritesKey && event.newValue) {
-        this.ngZone.run(() => {
-          this.favoritesSubject.next(JSON.parse(event.newValue!));
-        });
-      }
-    });
-
-    if (this.catalogSubject.value.length === 0) {
-      this.initCatalog();
-    }
+    this.refreshCatalogIfStale();
   }
 
   public searchLocal(term: string, type: SearchType): Cocktail[] {
@@ -70,7 +58,6 @@ export class CocktailService {
       ? current.filter((id) => id !== idDrink)
       : [...current, idDrink];
 
-    localStorage.setItem(this.favoritesKey, JSON.stringify(favorites));
     this.favoritesSubject.next(favorites);
 
     this.broadcastChannel.postMessage({ type: 'FAVS_UPDATED', favorites });
@@ -80,30 +67,14 @@ export class CocktailService {
     return this.favoritesSubject.value.includes(idDrink);
   }
 
-  private loadCatalogFromStorage(): Cocktail[] {
-    const raw = localStorage.getItem(this.storageKey);
-    if (!raw) return [];
-
-    try {
-      const parsed = JSON.parse(raw);
-      if (Array.isArray(parsed)) return parsed;
-      if (parsed && typeof parsed === 'object' && 'storedAt' in parsed) {
-        const stored: StoredCatalog = parsed;
-        if (Date.now() - stored.storedAt > CATALOG_TTL_MS) {
-          localStorage.removeItem(this.storageKey);
-          return [];
-        }
-        return stored.cocktails ?? [];
-      }
-      return [];
-    } catch {
-      return [];
+  private refreshCatalogIfStale(): void {
+    if (this.catalogSubject.value.length === 0 || this.isCatalogStale()) {
+      this.initCatalog();
     }
   }
 
-  private loadFavoritesFromStorage(): string[] {
-    const stored = localStorage.getItem(this.favoritesKey);
-    return stored ? JSON.parse(stored) : [];
+  private isCatalogStale(): boolean {
+    return this.catalogCachedAt === 0 || Date.now() - this.catalogCachedAt > CATALOG_TTL_MS;
   }
 
   private initCatalog(): void {
@@ -112,14 +83,19 @@ export class CocktailService {
       .subscribe((res) => {
         const cocktails = this.parseCocktails(res.drinks);
         if (cocktails.length > 0) {
-          this.persistCatalog(cocktails);
-          this.catalogSubject.next(cocktails);
+          this.applyCatalog(cocktails, Date.now());
+          this.broadcastChannel.postMessage({
+            type: 'CATALOG_UPDATED',
+            catalog: cocktails,
+            cachedAt: this.catalogCachedAt,
+          });
         }
       });
   }
 
-  private persistCatalog(cocktails: Cocktail[]): void {
-    localStorage.setItem(this.storageKey, JSON.stringify({ storedAt: Date.now(), cocktails }));
+  private applyCatalog(cocktails: Cocktail[], cachedAt: number): void {
+    this.catalogCachedAt = cachedAt;
+    this.catalogSubject.next(cocktails);
   }
 
   private parseCocktails(drinks: CocktailApiDrink[] | null): Cocktail[] {
